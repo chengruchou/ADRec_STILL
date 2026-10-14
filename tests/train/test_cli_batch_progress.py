@@ -1,4 +1,4 @@
-"""The command line, the sequential batch entry point and terminal progress."""
+﻿"""The command line, the sequential batch entry point and terminal progress."""
 
 from __future__ import annotations
 
@@ -18,12 +18,14 @@ SMALL = ["--set", "embedding_dim=8", "--set", "hidden_dim=8",
          "--set", "training.negative_samples=4", "--set", "training.batch_size=16"]
 
 
-def test_models_lists_all_eighteen_backends(capsys):
+def test_models_lists_every_registered_backend(capsys):
+    """The 18 donor backends plus the four upstream ADRec-fork models."""
     assert main(["models"]) == 0
     lines = [line.split() for line in capsys.readouterr().out.strip().splitlines()]
-    assert len(lines) == 18
+    assert len(lines) == 22
     assert sum(1 for line in lines if line[2] == "floor") == 8
-    assert sum(1 for line in lines if line[2] == "neural") == 10
+    assert sum(1 for line in lines if line[2] == "neural") == 14
+    assert sum(1 for line in lines if line[1] == "upstream") == 4
 
 
 def test_train_from_a_raw_file_in_a_subprocess_with_real_progress(raw_gowalla_file, tmp_path):
