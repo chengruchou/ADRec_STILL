@@ -346,7 +346,11 @@ def _score_batch(model, sub_batch, scorer_factory, score_kind, chunk_size, *,
             score_kind=score_kind,
         )
     else:
-        features = {key: sub_batch[key].clone() for key in INFERENCE_FIELDS}
+        features = {
+            key: (sub_batch[key].clone() if isinstance(sub_batch[key], torch.Tensor)
+                  else list(sub_batch[key]))
+            for key in INFERENCE_FIELDS if key in sub_batch
+        }
         contributions = exact_ranking_contributions(
             scorer_factory(features),
             sub_batch["next_poi"],

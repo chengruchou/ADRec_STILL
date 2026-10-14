@@ -19,6 +19,9 @@ INFERENCE_FIELDS = (
     "history_mask",
     "last_timestamp",
     "query_s_sec",
+    # Causal anchor identity (a list of strings when present): names the anchor
+    # event so full-memory models can resolve their seen-set; never the future.
+    "gap_id",
 )
 
 

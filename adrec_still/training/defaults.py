@@ -38,6 +38,12 @@ BACKENDS: dict[str, dict[str, str]] = {
     "diffurec": {"family": "upstream", "kind": "neural"},
     "dreamrec": {"family": "upstream", "kind": "neural"},
     "sasrec_upstream": {"family": "upstream", "kind": "neural"},
+    # ADRec-STILL extension family (full repeat memory; silence conditioning)
+    "adrec_repeat": {"family": "adrec_still", "kind": "neural"},
+    "adrec_elapsed": {"family": "adrec_still", "kind": "neural"},
+    "adrec_repeat_elapsed": {"family": "adrec_still", "kind": "neural"},
+    "adrec_still": {"family": "adrec_still", "kind": "neural"},
+    "still_direct": {"family": "adrec_still", "kind": "neural"},
 }
 
 _SASREC = {
@@ -71,6 +77,26 @@ _UPSTREAM_DIFFUSION = {
     "lambda_uncertainty": 0.001,
     "rescale_timesteps": True,
     "cfg_scale": 1.0,
+}
+_ADREC_STILL = {
+    "hidden_size": 128,
+    "dropout": 0.1,
+    "emb_dropout": 0.3,
+    "mixture_components": 2,
+    "diffusion_steps": 32,
+    "noise_schedule": "trunc_lin",
+    "schedule_sampler_name": "uniform",
+    "lambda_uncertainty": 0.001,
+    "rescale_timesteps": True,
+    "cfg_scale": 1.0,
+    "loss_scale": 1.0,
+    "ce_weight": 1.0,
+    # Engineering starting points for the silence-cell axes; research-calibrated
+    # values are open (docs/MODELING.md), never claim these as confirmed settings.
+    "cell_time_threshold_hours": 24.0,
+    "time_samples": 2,
+    "diffusion_samples": 1,
+    "inference_steps": None,
 }
 
 #: Constructor defaults per backend (the committed YAML values).
@@ -118,6 +144,11 @@ MODEL_DEFAULTS: dict[str, dict[str, Any]] = {
     "diffurec": dict(_UPSTREAM_DIFFUSION),
     "dreamrec": dict(_UPSTREAM_DIFFUSION),
     "sasrec_upstream": dict(_UPSTREAM),
+    "adrec_repeat": dict(_ADREC_STILL),
+    "adrec_elapsed": dict(_ADREC_STILL),
+    "adrec_repeat_elapsed": dict(_ADREC_STILL),
+    "adrec_still": dict(_ADREC_STILL),
+    "still_direct": dict(_ADREC_STILL),
 }
 
 #: The shared neural training recipe. ``early_stopping_metric`` is absent on
@@ -165,6 +196,19 @@ TRAINING_PROFILE_DEFAULTS: dict[str, str] = {
     "still_independent": "still-train-admin-censor-v1",
     "still_joint": "still-train-admin-censor-v1",
     "external_joint_lnm": "still-train-admin-censor-v1",
+    # ADRec-STILL: once-per-gap base-distribution training (s=0, censors kept)
+    "adrec_still": "adrec-still-gap-censor-v1",
+    "still_direct": "adrec-still-gap-censor-v1",
+    # the repeat-memory ablation is event-only (no time model, no censors)
+    "adrec_repeat": "still-event-only-observed-known-v1",
+    # the elapsed ablations train on the full landmark grid (observed-known rows)
+}
+
+#: Selection default per backend where it differs from the family default.
+SELECTION_METRIC_DEFAULTS: dict[str, str] = {
+    name: "ndcg@10"
+    for name in ("adrec_repeat", "adrec_elapsed", "adrec_repeat_elapsed",
+                 "adrec_still", "still_direct")
 }
 
 #: Evaluation defaults shared by every backend.
@@ -193,5 +237,7 @@ def default_model_config(name: str) -> dict[str, Any]:
         training = dict(TRAINING_DEFAULTS)
         if name in TRAINING_PROFILE_DEFAULTS:
             training["training_profile"] = TRAINING_PROFILE_DEFAULTS[name]
+        if name in SELECTION_METRIC_DEFAULTS:
+            training["early_stopping_metric"] = SELECTION_METRIC_DEFAULTS[name]
         config["training"] = training
     return config

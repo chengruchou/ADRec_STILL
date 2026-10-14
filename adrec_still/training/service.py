@@ -271,6 +271,31 @@ def resolve_training(
     return training, policy
 
 
+def attach_full_history(model, data: DataSource, *, reporter: Reporter | None = None) -> None:
+    """Build and attach the full event memory an adrec_still model requires."""
+    from adrec_still.data.history import (
+        FullHistoryIndex,
+        train_cutoff_from_split_manifest,
+    )
+
+    if data.events_path is None:
+        raise RunFailed(
+            f"model family adrec_still needs full repeat semantics, which require "
+            f"events.parquet beside {data.landmark_path}; preprocess from the raw "
+            "check-in file or point --data at a complete canonical directory"
+        )
+    cutoff = (
+        train_cutoff_from_split_manifest(data.split_manifest_path)
+        if data.split_manifest_path is not None else None
+    )
+    reporter = reporter or Reporter()
+    with reporter.phase("full-history-index"):
+        index = FullHistoryIndex(
+            data.events_path, data.catalog_path, train_cutoff_s=cutoff
+        )
+    model.attach_memory(index)
+
+
 def git_metadata() -> dict[str, Any]:
     """Commit and dirty state when available; ``None`` values otherwise, never a failure."""
     try:
@@ -437,6 +462,8 @@ def _run_neural(spec, config, data, evaluation, device, reporter, record, output
         training, data, cache_dir, reporter=reporter,
     )
     model = families.build_model(config, data.number_of_pois)
+    if record["family"] == "adrec_still":
+        attach_full_history(model, data, reporter=reporter)
     if record["family"] == "external":
         checkpoint = spec.resume or spec.weights
         if checkpoint is not None:
