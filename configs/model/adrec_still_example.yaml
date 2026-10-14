@@ -1,0 +1,28 @@
+# ADRec-STILL coherent model: every value below is also the built-in default,
+# spelled out so an experiment records what it ran.
+name: adrec_still
+hidden_size: 128
+dropout: 0.1
+emb_dropout: 0.3
+mixture_components: 2        # lognormal components per branch (not branches, not cells)
+diffusion_steps: 32
+noise_schedule: trunc_lin
+lambda_uncertainty: 0.001
+cfg_scale: 1.0               # other values are explicit, recorded experiments
+loss_scale: 1.0              # weight of the ADRec denoising MSE
+ce_weight: 1.0               # weight of the branch-restricted CE surrogate
+# Engineering starting points for the silence cells (awaiting calibration):
+cell_time_threshold_hours: 24
+# Monte-Carlo budget of the forecast (recorded in every result):
+time_samples: 2
+diffusion_samples: 1
+inference_steps: null        # null = the full reverse schedule
+training:
+  training_profile: adrec-still-gap-censor-v1
+  early_stopping_metric: ndcg@10
+  max_epochs: 20
+  early_stopping_patience: 5
+  batch_size: 256
+  learning_rate: 0.001
+  negative_samples: 128
+  selection_horizon_sec: null   # null = select on all validation horizons
