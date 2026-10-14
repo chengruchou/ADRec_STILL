@@ -144,10 +144,18 @@ def test_frozen_home_uses_only_pre_cutoff_events(index):
     assert index.home(gap, policy="frozen") == (-5.0, 30.0)   # only pY precedes the cutoff
 
 
-def test_frozen_home_falls_back_to_causal_without_pre_cutoff_events(index):
+def test_frozen_home_without_pre_cutoff_events_is_none_and_callers_fall_back(index):
+    """A user with no pre-cutoff event has no frozen home: the index answers
+    None (so the fallback is detectable and countable), and the feature bridge
+    performs the causal fallback explicitly."""
+    from adrec_still.models.adrec_still.memory import memory_features
+
     gap = _gap(30, 31)  # user D's events all sit at or after the cutoff
-    assert index.home(gap, policy="frozen") == index.home(gap, policy="causal")
-    assert index.home(gap, policy="frozen") == (10.0, 20.0)
+    assert index.home(gap, policy="frozen") is None
+    assert index.home(gap, policy="causal") == (10.0, 20.0)
+    features = memory_features(index, {"gap_id": [gap]}, home_policy="frozen")
+    assert bool(features.home_available[0])
+    assert (float(features.home_lat[0]), float(features.home_lon[0])) == (10.0, 20.0)
 
 
 def test_frozen_home_requires_a_cutoff(tmp_path):

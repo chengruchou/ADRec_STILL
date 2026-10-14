@@ -152,7 +152,10 @@ class DreamRec(nn.Module):
         return model_mean + nonzero_mask * torch.exp(0.5 * model_log_variance) * noise
 
     def denoise_sample(self, seq, tgt, mask_seq, mask_tag, *, generator=None):
-        seq = self.ag_encoder(seq, mask_seq)
+        # Upstream fidelity: the fork's DreamRec conditions the reverse loop on
+        # the RAW normalized history embeddings — ag_encoder runs in forward()
+        # (training) only. That train/inference conditioning mismatch is the
+        # fork's shipped behavior and is preserved, not repaired (MIGRATION.md).
         if generator is None:
             noise_x_t = torch.randn_like(tgt)
         else:

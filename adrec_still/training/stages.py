@@ -354,10 +354,16 @@ def train_staged_model(model, plan: StagedPlan) -> dict[str, Any]:
             else:
                 # Entering a new stage: the selection scope is explicitly reset.
                 # The previous stage's best stays only as a record, never as the
-                # comparison baseline for this stage.
-                if best is not None:
-                    stage_history.append({"stage": stages[stage_index - 1][0],
-                                          "best": best})
+                # comparison baseline for this stage. Stages that already wrote
+                # their full end-of-stage record (with epochs) are not repeated;
+                # this append covers only a resume landing past that record.
+                previous_stage = stages[stage_index - 1][0]
+                already_recorded = any(
+                    entry.get("stage") == previous_stage and "epochs" in entry
+                    for entry in stage_history
+                )
+                if best is not None and not already_recorded:
+                    stage_history.append({"stage": previous_stage, "best": best})
                 best = None
                 best_state = None
             bad_epochs = 0

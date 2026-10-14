@@ -63,6 +63,13 @@ teacher-forcing the clean prefix each reverse step, the CE + scaled-MSE
 objective merged through the PCGrad wrapper (projection off by default, as
 upstream), and the three-stage pretrain/warmup/finetune recipe.
 
+Also preserved, deliberately: DreamRec's **train/inference conditioning
+mismatch**. The fork's `DreamRec.forward` encodes the history with
+`ag_encoder` during training, but its `denoise_sample` conditions the reverse
+loop on the raw normalized embeddings — the encoder never runs at inference.
+The port reproduces that shipped behavior rather than repairing it; a repaired
+variant would be a differently-named experiment.
+
 ### Execution fixes (source behavior → ported behavior)
 
 (a) **Attention padding mask** — the fork built the padding mask as

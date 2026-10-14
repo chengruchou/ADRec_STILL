@@ -175,9 +175,9 @@ class FullHistoryIndex:
         The center is the most-visited geocoded known POI (ties: smaller POI ID),
         computed from events at positions up to the anchor ("causal") or up to the
         last event strictly before the train cutoff ("frozen", the evaluation
-        policy; it falls back to the causal prefix when the user has no pre-cutoff
-        event, which is reported by the caller's coverage counters). ``None`` when
-        no geocoded known POI exists in the chosen prefix.
+        policy). ``None`` when no geocoded known POI exists in the chosen prefix —
+        including a frozen query for a user with no pre-cutoff event, so callers
+        can fall back to the causal prefix *explicitly* and count that fallback.
         """
         if self._coordinates is None:
             return None
@@ -188,8 +188,9 @@ class FullHistoryIndex:
             frozen_stop = bisect.bisect_left(
                 self._user_time[user].tolist(), int(self.train_cutoff_s)
             )
-            if frozen_stop > 0:
-                position = min(position, frozen_stop - 1)
+            if frozen_stop == 0:
+                return None  # no pre-cutoff event: the caller owns the fallback
+            position = min(position, frozen_stop - 1)
         elif policy != "causal":
             raise ValueError(f"unknown home policy: {policy!r}")
         prefix = self._user_poi[user][: position + 1]

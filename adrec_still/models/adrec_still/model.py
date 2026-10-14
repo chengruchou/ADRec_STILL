@@ -189,6 +189,11 @@ class AdrecStillModel(BaselineModel, nn.Module):
         self._memory: FullHistoryIndex | None = None
         self.home_policy_train = "causal"
         self.home_policy_eval = "frozen"
+        if self.time_model != "lognormal":
+            # The shared evaluator detects joint capability via
+            # callable(model.score_joint); variants without a time law must not
+            # advertise one. The instance attribute shadows the class method.
+            self.score_joint = None
 
     # ---------------------------------------------------------------- plumbing
 
@@ -383,11 +388,19 @@ class AdrecStillModel(BaselineModel, nn.Module):
         on it explicitly).
         """
         seen_poi = memory.seen_poi.to(self.device)
-        positions = torch.searchsorted(seen_poi, ids.contiguous())
+        seen_mask = memory.seen_mask.to(self.device)
+        # seen_poi rows are ascending real IDs followed by ZERO padding, which
+        # breaks searchsorted's sortedness precondition for any row shorter than
+        # the batch width (genuinely seen items then probe into the padding and
+        # read as unseen, batch-composition-dependently). Search over sentinel
+        # keys instead: padding becomes number_of_pois, keeping rows ascending;
+        # storage keeps zeros so padded entries stay embedding-safe elsewhere.
+        search_keys = torch.where(
+            seen_mask, seen_poi, torch.full_like(seen_poi, self.number_of_pois)
+        )
+        positions = torch.searchsorted(search_keys, ids.contiguous())
         positions = positions.clamp(max=max(seen_poi.shape[1] - 1, 0))
-        matched = seen_poi.gather(1, positions).eq(ids) & memory.seen_mask.to(
-            self.device
-        ).gather(1, positions)
+        matched = seen_poi.gather(1, positions).eq(ids) & seen_mask.gather(1, positions)
         counts = memory.seen_count.to(self.device).gather(1, positions)
         last_visit = memory.seen_last_s.to(self.device).gather(1, positions)
         delta_hours = (

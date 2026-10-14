@@ -268,8 +268,11 @@ class AdRec(nn.Module):
                 "posterior_variance": self.posterior_variance,
                 "betas": self.betas,
             }
-        if inference_steps <= 0:
-            raise ValueError("inference_steps must be positive")
+        if inference_steps < 2:
+            # The DDPM log-variance table reads index 1
+            # (np.append(posterior_variance[1], betas[1:])), so a one-step chain
+            # has no valid variance entry.
+            raise ValueError("inference_steps must be at least 2")
         kept = sorted(space_timesteps(self.num_timesteps, [inference_steps]))
         last_alpha_cumprod = 1.0
         new_betas = []

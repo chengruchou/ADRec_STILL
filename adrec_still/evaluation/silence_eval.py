@@ -425,6 +425,10 @@ def evaluate_silence_split(
     }
     if mc_metadata:
         result["mc"] = mc_metadata
-        overall = result["ranking"]["overall"]
-        overall["poi_nll_mc"] = overall.pop("poi_nll")
+        # Every bucket's known-item mark NLL is the same MC estimate: say so in
+        # all of them, never just the headline.
+        for bucket in (*result["ranking"].values(),
+                       *result["ranking_by_horizon_seconds"].values()):
+            if "poi_nll" in bucket:
+                bucket["poi_nll_mc"] = bucket.pop("poi_nll")
     return result

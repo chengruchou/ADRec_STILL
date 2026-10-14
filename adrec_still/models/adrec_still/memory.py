@@ -81,6 +81,10 @@ def memory_features(index: FullHistoryIndex, batch: dict, *,
             seen_last[row, :m] = torch.from_numpy(state.last_visit_s)
             seen_mask[row, :m] = True
         home = index.home(gap_id, policy=home_policy)
+        if home is None and home_policy == "frozen":
+            # No pre-cutoff activity center: fall back to the causal prefix so a
+            # post-cutoff-only user still has a feature-side home.
+            home = index.home(gap_id, policy="causal")
         if home is not None:
             home_lat[row], home_lon[row] = home
             home_available[row] = True
