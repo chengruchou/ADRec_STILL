@@ -1,4 +1,4 @@
-"""``python -m still`` command line."""
+﻿"""``python -m adrec_still`` command line."""
 
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ def add_run_arguments(parser: argparse.ArgumentParser, *, batch: bool = False) -
         model.add_argument("--seeds", default="41", help="comma-separated seeds (default 41)")
     else:
         model.add_argument("--model", choices=sorted(BACKENDS), metavar="NAME",
-                           help="backend ID; see `python -m still models`")
+                           help="backend ID; see `python -m adrec_still models`")
         model.add_argument("--config", type=Path,
                            help="legacy experiment YAML (its model_config is used; its "
                                 "dataset/manifest/selection fields are ignored)")
@@ -132,14 +132,14 @@ def spec_from_args(args: argparse.Namespace, *, model: str | None, seed: int, ou
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="python -m still",
-        description="Train and evaluate STILL models on a dataset.",
+        prog="python -m adrec_still",
+        description="Train and evaluate ADRec-STILL models on a dataset.",
     )
     commands = parser.add_subparsers(dest="command", required=True)
 
     train = commands.add_parser(
         "train", help="train one model on one dataset",
-        description="Train one model. Example: python -m still train --data data/processed/"
+        description="Train one model. Example: python -m adrec_still train --data data/processed/"
                     "foursquare_nyc --model sasrec_h --epochs 3 --device cpu --output runs/nyc",
     )
     add_run_arguments(train)
@@ -211,7 +211,7 @@ def _run_batch(args: argparse.Namespace) -> int:
     seeds = [int(seed) for seed in args.seeds.split(",") if seed.strip()]
     unknown = [name for name in models if name not in BACKENDS]
     if unknown:
-        print(f"error: unknown models {unknown}; see `python -m still models`", file=sys.stderr)
+        print(f"error: unknown models {unknown}; see `python -m adrec_still models`", file=sys.stderr)
         return EXIT_USAGE
     _hide_gpus_for_cpu_runs(args.device)
     return run_batch(args, models, seeds, stop_on_failure=not args.continue_on_failure)
