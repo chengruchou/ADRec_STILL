@@ -1,0 +1,11 @@
+name: repeat_last
+family: baseline
+implementation: adrec_still.models.baselines.repeat_last.RepeatLast
+# p = repeat_weight * onehot(last known POI) + (1 - repeat_weight) * GlobalPop.
+# repeat_weight >= 0.5 guarantees the last known POI always ranks first while the
+# remaining ranks follow the GlobalPop order.
+repeat_weight: 0.5
+# GlobalPop fallback used for rows without a known last POI (committed fallback
+# policy; the fallback rate is reported per split).
+count_source: train_targets
+smoothing: 1.0

@@ -1,0 +1,31 @@
+name: gowalla_gru4rec_h
+description: History-only recurrent baseline (B1) on the frozen Gowalla v0.1 protocol.
+dataset_config: configs/dataset/gowalla.yaml
+model_config: configs/model/gru4rec_h.yaml
+manifest: data/manifests/gowalla_v0.1.json
+# The #71 verified consumer implements this execution contract. Every formal run
+# still checks the exact recipe, clean source, frozen canonical bytes, fresh
+# registration/ID sidecar and actual device before allocating a model. This
+# declaration is not evidence of a completed experiment or a locally usable GPU.
+specification_id: still-gowalla-core-v1-20260909
+specification_status: frozen
+frozen: true
+device: cuda:0
+# Registered #38 selection manifest for this cell (table1, complete 24h
+# validation population), derived by scripts/register_gowalla_selection.py from
+# the frozen Gowalla v0.1 Parquet and independently re-derived from source
+# (#41). Naming it is not acceptance and does not bind it: promotion to bound needs
+# a fresh register_selection derivation against this run's own cohort index, and the
+# verified baseline entry point derives it on every run before creating the model.
+# Registered seed set of still-gowalla-core-v1-20260909 (#37 §2): seed 41 runs
+# first in the core order, then 42 and 43 under the same recipe as resources
+# permit. The campaign dispatches one seed per invocation (--seeds).
+seeds: [41, 42, 43]
+evaluation:
+  splits: [validation, test]
+  # Registered selection and final exact export stream full-catalog chunks.
+  batch_size: 128
+  chunk_size: 4096
+  max_sequence_length: 100
+  num_workers: 0
+output_dir: results/baselines/gowalla_gru4rec_h

@@ -1,0 +1,15 @@
+name: user_history_pop
+family: baseline
+implementation: adrec_still.models.baselines.user_history_pop.UserHistoryPop
+# Mixture over normalized distributions:
+#   p = history_weight * in-history frequency + (1 - history_weight) * GlobalPop.
+# The fit-time guard requires history_weight / max_history_length to exceed
+# (1 - history_weight) * max(GlobalPop), so ranking provably follows in-history
+# frequency first, with ties broken by the GlobalPop score.
+history_weight: 0.9
+# Must be >= the evaluation max_sequence_length so the frequency-first guard holds.
+max_history_length: 100
+# GlobalPop fallback used for rows without any known historical POI (committed
+# fallback policy; the fallback rate is reported per split).
+count_source: train_targets
+smoothing: 1.0

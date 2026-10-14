@@ -1,0 +1,5 @@
+# Marker file only: the committed configs vendored under tests/fixtures/configs name
+# repo-relative paths (configs/model/x.yaml, data/processed/gowalla). The training
+# service resolves such references against the nearest ancestor directory holding a
+# pyproject.toml, so this file anchors that resolution at tests/fixtures, exactly as
+# the donor repository root anchored it there.

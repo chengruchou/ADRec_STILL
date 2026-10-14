@@ -1,0 +1,82 @@
+# External dependent time-mark LNM baseline (#51) -- Gowalla CANDIDATE recipe
+# external-joint-lnm-still-v1-proposed-20260909. Registered by the lead on #51 as
+# a proposal; it is NOT one of the seven still-gowalla-core-v1-20260909 core
+# recipes, not accepted/frozen, and never counted in the core completion tally.
+# Source fidelity and every deviation from the paper/official implementation are
+# recorded in src/still/models/external/UPSTREAM.md.
+#
+# Model capacity is the delivered stage-1 structure (PR #55), kept as a fixed-budget
+# STILL adaptation: literal full-catalog per-mark log-normal head with C=2,
+# context 32, mark embedding 16, one GRU layer, dropout 0. This is neither the
+# paper's experimental setup (C=64, history vector 64, mark embedding 32/64) nor
+# the upstream constructor defaults (C=16, context 32, embedding 32), and no claim
+# of parameter parity with the internal arms is made: the literal head costs
+# 3*C*V*(context_dim+1) parameters on the real catalog (recorded, unmeasured).
+name: external_joint_lnm
+family: external
+recipe_id: external-joint-lnm-still-v1-proposed-20260909
+recipe_status: proposed
+specification_reference: still-gowalla-core-v1-20260909
+mark_embedding_dim: 16
+context_dim: 32
+num_layers: 1
+dropout: 0.0
+mixture_components: 2
+# EXECUTED statistics population: the #39 visible training view this run builds,
+# read only after the view file is checked against its own manifest. This is the
+# population formal_recipe.statistics_population requests; the canonical
+# completed-gap fit remains available as fit_train_unique_gaps and is never
+# relabelled. identity is the fixture declaration and is never used here.
+log_time_statistics: fit_visible_training_view
+training:
+  # EXECUTED block: the accepted #39 survival training view and the requested 24h
+  # joint-NLL selection, which this port now implements (per_row_survival_training_losses,
+  # the visible-view statistics fit and the converged CRPS the shared joint scorer
+  # needs). Budget, optimizer, precision, seeds, catalog and model structure are
+  # unchanged. Executing the requested recipe is capability, not acceptance: the
+  # recipe stays proposed and the execution contract stays frozen: false.
+  training_profile: still-train-admin-censor-v1
+  landmark_weighting: per_gap
+  optimizer: adam
+  learning_rate: 0.001
+  weight_decay: 0.0
+  betas: [0.9, 0.999]
+  eps: 1.0e-8
+  amsgrad: false
+  scheduler: null
+  gradient_clipping: null
+  amp: false
+  tf32: false
+  gradient_accumulation: 1
+  drop_last: false
+  batch_size: 256
+  max_epochs: 20
+  early_stopping_patience: 5
+  min_delta: 0.0
+  early_stopping_metric: joint_nll
+  early_stopping_mode: min
+  selection_horizon_sec: 86400
+  validation_max_batches: null
+  negative_samples: 128
+  device: auto
+formal_recipe:
+  # REQUESTED candidate recipe: the accepted #39 survival view and the sampled
+  # conditional-mark surrogate for training (exact marginal time NLL + shared
+  # sampled conditional-mark NLL, coefficient 1 each); exact full-catalog joint NLL
+  # for validation/test selection and scoring. Seeds: 41 first, then 42/43.
+  specification_id: still-gowalla-core-v1-20260909
+  recipe_id: external-joint-lnm-still-v1-proposed-20260909
+  table: table2
+  core_member: false
+  training_profile: still-train-admin-censor-v1
+  weighting_contract: still-survival-gap-weighting-v1
+  statistics_population: still-train-admin-censor-v1-visible-training-view
+  training_objective: exact-marginal-time-nll+shared-sampled-conditional-mark-nll
+  selection:
+    metric: joint_nll
+    direction: min
+    horizon_sec: 86400
+    metric_source: accepted-39-joint
+  seeds:
+    first_stage: [41]
+    final_target: [41, 42, 43]

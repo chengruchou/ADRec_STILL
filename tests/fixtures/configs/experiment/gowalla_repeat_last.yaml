@@ -1,0 +1,14 @@
+name: gowalla_repeat_last
+description: Repetition (last known POI) baseline on the frozen Gowalla v0.1 protocol.
+dataset_config: configs/dataset/gowalla.yaml
+model_config: configs/model/repeat_last.yaml
+manifest: data/manifests/gowalla_v0.1.json
+# RepeatLast is deterministic, so one recorded seed is sufficient; the seed is
+# still written into every run record.
+seeds: [41]
+evaluation:
+  splits: [validation, test]
+  batch_size: 128
+  max_sequence_length: 100
+  num_workers: 0
+output_dir: results/baselines/gowalla_repeat_last

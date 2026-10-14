@@ -1,0 +1,37 @@
+name: gowalla_still_independent
+description: >-
+  Independent time/POI control arm (#41) on the frozen Gowalla v0.1 protocol under
+  the frozen research specification still-gowalla-core-v1-20260909 (#37, closed
+  2026-09-09). The #39 still-train-admin-censor-v1 contract is implemented and
+  accepted (still.common.acceptance), and this cell executes it. The execution
+  config is declared frozen; every invocation independently requires clean source,
+  the frozen canonical bytes, an available explicit cuda:0 device, the complete
+  registered 24h selection, and the shared selected-checkpoint reload/export path.
+  The declaration does not certify any run or empirical result.
+specification_id: still-gowalla-core-v1-20260909
+specification_status: frozen
+# Execution-contract acceptance (runtime), distinct from the research specification.
+# Setting this true does not unlock formal mode by itself: every named check in
+# still.common.recipe still has to pass.
+frozen: true
+dataset_config: configs/dataset/gowalla.yaml
+model_config: configs/model/still_independent.yaml
+manifest: data/manifests/gowalla_v0.1.json
+# Registered #38 selection manifest for this cell (table2, complete 24h
+# validation population), derived by scripts/register_gowalla_selection.py from
+# the frozen Gowalla v0.1 Parquet and independently re-derived from source
+# (#41). Naming it is not acceptance: the still runner re-derives a register_selection
+# identity from this run's own artifacts and only an exact match promotes the binding
+# to bound (#63). Until that derivation runs the cell keeps a formal blocker.
+# Registered seed set (#37 §2): seed 41 first in the core order, then 42 and 43 as
+# resources permit. The campaign dispatches one seed per invocation (--seeds).
+seeds: [41, 42, 43]
+# Formal device (#37 §5): one RTX 3090, explicit cuda:0. Smoke runs and the
+# synthetic fixture override this with --device / the fixture config.
+device: cuda:0
+evaluation:
+  splits: [validation, test]
+  batch_size: 128
+  max_sequence_length: 100
+  num_workers: 0
+output_dir: results/raw/still/gowalla_still_independent

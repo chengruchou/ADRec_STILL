@@ -1,0 +1,14 @@
+name: foursquare_nyc_repeat_last
+description: Repetition (last known POI) baseline on the Foursquare NYC v0.1 protocol (#69).
+dataset_config: configs/dataset/foursquare_nyc.yaml
+model_config: configs/model/repeat_last.yaml
+manifest: data/manifests/foursquare_nyc_v0.1.json
+# Deterministic, so one recorded seed is sufficient; the seed is still written into
+# every run record.
+seeds: [41]
+evaluation:
+  splits: [validation, test]
+  batch_size: 128
+  max_sequence_length: 100
+  num_workers: 0
+output_dir: results/baselines/foursquare_nyc_repeat_last

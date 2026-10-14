@@ -1,0 +1,54 @@
+name: still_table2_comparison_proposed
+status: proposed  # registration only: nothing here is a result or runtime acceptance
+description: >-
+  Registration of the Table 2 comparison set for #37/#42: matched-information,
+  matched-K Independent vs CoherentJoint, plus the registered same-checkpoint
+  survivor-reweighting ablation. Registered before any formal test inspection.
+  The research specification (K=2, budget, selection rule) is frozen as
+  still-gowalla-core-v1-20260909 (#37, closed 2026-09-09); the execution contract is
+  pending on #39 and the #38 selection registration.
+specification_id: still-gowalla-core-v1-20260909
+comparisons:
+  - id: independent_vs_coherent
+    purpose: primary model/recipe comparison on matched information and data
+    arms:
+      - experiment: configs/experiment/gowalla_still_independent.yaml
+      - experiment: configs/experiment/gowalla_still_joint.yaml
+    interpretation_limits: >-
+      Dependence structure, parameter counts and optimization dynamics still differ
+      between the arms; a difference supports this tested model/recipe comparison and
+      must not be attributed entirely to the coherence constraint.
+  - id: coherent_vs_fixed_pi_ablation
+    purpose: mechanism diagnostic of the mixture survivor reweighting
+    arms:
+      - experiment: configs/experiment/gowalla_still_joint.yaml
+        variant: survivor_reweighted
+      - experiment: configs/experiment/gowalla_still_joint.yaml
+        variant: fixed_pi_truncated  # same checkpoint, sample IDs, candidates, evaluator
+    interpretation_limits: >-
+      A mechanism diagnostic, not an external baseline, and not the totality of
+      consistency effects; the ablation keeps per-component truncation, freezes pi, is
+      normalized per query, and no longer satisfies the full cross-query conditioning
+      identity. It equals the coherent model at s=0, at K=1, and when component
+      survivals coincide; identical mark heads leave the POI marginal unchanged.
+  - id: published_joint_baseline
+    purpose: external published dependent time-mark baseline (#51)
+    status: candidate_registered_outside_core  # not accepted, no results implied
+    recipe_id: external-joint-lnm-still-v1-proposed-20260909
+    arms:
+      - experiment: configs/experiment/gowalla_external_joint_lnm.yaml
+    interpretation_limits: >-
+      A fixed-budget STILL adaptation of the dependent LNM model (literal per-mark
+      head, C=2), not a paper reproduction and not parameter-matched to the internal
+      arms; it is managed and counted separately from the seven core recipes.
+selection:
+  table2_metric: validation exact joint NLL on the common observed exact-known positive-residual 24h subset
+  direction: min
+  decided_by: "#37 (still-gowalla-core-v1-20260909)"
+  executable_source: >-
+    pending: the #39 joint scorer/mask callback for the #38 export and the trainer
+    wiring; until then every runner records the interim validation ndcg@10 (max) at
+    24h as an unsupported request, never as the Table 2 selection.
+seeds:
+  first_stage: [41]
+  final_target: [41, 42, 43]

@@ -1,0 +1,19 @@
+name: diffusion_toy
+family: diffusion_core
+
+# schedule / data (consumed by C1: toy_data.py, noise_schedule.py)
+embedding_dim: 64
+diffusion_steps: 100
+noise_schedule: cosine
+seed: 41
+toy_data:
+  num_clusters: 8
+  samples_per_cluster: 64
+  cluster_std: 0.05
+
+# denoiser / training (consumed by C2: denoiser.py, objective.py)
+denoiser_hidden_dim: 256
+denoiser_layers: 3
+batch_size: 256
+learning_rate: 0.001
+training_steps: 5000

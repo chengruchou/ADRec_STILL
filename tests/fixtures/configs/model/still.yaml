@@ -1,0 +1,13 @@
+name: still
+family: proposed
+history_encoder: transformer
+semantic_belief:
+  enabled: true
+future_model:
+  type: diffusion
+sampler:
+  type: pf_ode
+heads:
+  return_time: true
+  next_poi: true
+  cell: true

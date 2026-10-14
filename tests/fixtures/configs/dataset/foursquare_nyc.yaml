@@ -1,0 +1,32 @@
+name: foursquare_nyc
+adapter: foursquare_subset
+protocol_version: v0.1
+raw_root: data/raw/dataset_tsmc2014
+processed_root: data/processed/foursquare_nyc
+raw_filename: dataset_TSMC2014_NYC.txt
+source_page: https://sites.google.com/site/yangdingqi/home/foursquare-dataset
+download_url: https://drive.google.com/file/d/1VE67jfSN-GV6fkCfuyBEQJzk_qy-SfOk/view?usp=sharing
+split:
+  type: chronological
+  train: 0.70
+  validation: 0.10
+  test: 0.20
+candidate_horizons_hours: [0, 6, 12, 24, 48, 72, 168]
+max_history_length: 100
+preserve_long_gaps: true
+processing:
+  workers: 4
+cleaning:
+  invalid_rows: count_and_drop
+  duplicates: exact_rows_only
+  preserve_same_timestamp_different_pois: true
+coverage:
+  scope: New York City subset collected from April 2012 to February 2013
+  pilot_only: true
+  category_metadata: category IDs and names are audited but are not canonical targets in protocol v0.1
+  country_code_metadata: unavailable in the TSMC2014 subset files
+  timezone_offset_policy: audited only; the independent UTC field defines canonical event time
+  registered_cell_protocols: {}
+  limitations:
+    - Single-city coverage is pilot-only.
+    - Results must not support claims about displaced behavior or global geographic coverage.
