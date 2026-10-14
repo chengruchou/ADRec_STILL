@@ -526,6 +526,10 @@ def train_model(model, plan: TrainingPlan) -> dict[str, Any]:
                 "validation": _scalars(validation) if validation is not None else None,
                 "epoch_seconds": time.perf_counter() - epoch_started,
             }
+            if callable(getattr(model, "loss_components", None)):
+                # Models composing several loss terms (time/type NLL, CE
+                # surrogate, denoising MSE) log them separately per epoch.
+                row["loss_components"] = model.loss_components()
             curve.append(row)
             reporter.validation(
                 epoch, **_headline(validation, metric_key, value),
