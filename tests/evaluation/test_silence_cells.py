@@ -1,4 +1,4 @@
-"""Four silence cells: labels, count-weighted metrics, distances, zero-early readout.
+﻿"""Four silence cells: labels, count-weighted metrics, distances, zero-early readout.
 
 One hand-built user walks through all four cells once (home at the equator
 origin, a local POI ~5.56 km east, a displaced POI ~111.2 km east; gaps of one
@@ -138,7 +138,7 @@ def test_cell_labels_cover_all_four_cells_and_count_every_exclusion(index):
     assert labels.early[:5].tolist() == [True, True, False, False, False]
     assert labels.reasons == {
         "censored": 1, "no_gap_id": 0, "oov_target": 1, "no_home": 1,
-        "target_not_geocoded": 0, "labeled": 5,
+        "target_not_geocoded": 0, "labeled": 5, "causal_home_fallback": 0,
     }
 
 
