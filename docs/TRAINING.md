@@ -337,7 +337,7 @@ validate that the pipeline executes end to end on real data — they are
 |---|---|---|
 | `global_pop` | none (floors are cheap) | full test: 168,155 rows / 46,454 ranking-eligible; NDCG@10 0.0063, Recall@10 0.0152, poi_nll 11.22 |
 | `sasrec_h` | 2 epochs, 80 train batches/epoch, dim 64, selection on 20 validation batches at horizon 0 | full test: NDCG@10 0.0091, Recall@10 0.0184 (641 s total) |
-| `adrec_still` | 2 epochs, 60 train batches/epoch, dim 64, 16 diffusion steps, 1 time sample/stratum, `--no-test` + bounded `evaluate --max-batches 6` | 384 test rows: repeat-bucket NDCG@10 0.0219 vs explore 0.0; event repeat rate 0.237 (all targets) / 0.582 (known catalog); observed time NLL 13.17, censored survival NLL 0.547; four-cell metrics + prior/elapsed/history-elapsed comparisons produced with full coverage accounting (166/384 OOV targets, 127 censored) |
+| `adrec_still` | 2 epochs, 60 train batches/epoch, dim 64, 16 diffusion steps, 1 time sample/stratum, `--no-test` + bounded `evaluate --max-batches 6` | 384 test rows: overall NDCG@10 0.0220 / Recall@10 0.0440 (91 eligible); repeat-bucket NDCG@10 0.0377 vs explore 0.0; event repeat rate 0.237 (all targets) / 0.582 (known catalog), user-macro 0.225; observed time NLL 13.19, censored survival NLL 0.520; four-cell metrics (nontrivial NLL 2.47 vs prior 1.34 / elapsed 1.30 / history+elapsed 1.25 after 2 bounded epochs) with full coverage accounting (166/384 OOV targets, 127 censored, 0 unresolved geo mass) |
 
 Commands (as executed):
 
