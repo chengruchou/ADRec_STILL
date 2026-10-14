@@ -325,10 +325,34 @@ repository.
 
 ## Bounded validation on real data
 
-A bounded real-data Gowalla subset run (CPU/GPU-bounded, real check-ins) is
-executed separately; its numbers land here when it finishes.
+Executed on 2026-10-14, on CPU, against a **pre-declared time subset** of the
+real Gowalla check-in file: all check-ins in `[2010-06-01, 2010-06-15)` UTC
+(264,545 rows, 27,622 users, 159,417 raw POIs → a 117,144-entry frozen training
+catalog after the chronological 70/10/20 split). The subset was selected by its
+time window alone, before preprocessing; no labels were inspected. These runs
+validate that the pipeline executes end to end on real data — they are
+**bounded smoke results**, not tuned experiment numbers.
 
-<!-- BOUNDED-GOWALLA-RESULTS -->
+| run | bounds | result (test split) |
+|---|---|---|
+| `global_pop` | none (floors are cheap) | full test: 168,155 rows / 46,454 ranking-eligible; NDCG@10 0.0063, Recall@10 0.0152, poi_nll 11.22 |
+| `sasrec_h` | 2 epochs, 80 train batches/epoch, dim 64, selection on 20 validation batches at horizon 0 | full test: NDCG@10 0.0091, Recall@10 0.0184 (641 s total) |
+| `adrec_still` | 2 epochs, 60 train batches/epoch, dim 64, 16 diffusion steps, 1 time sample/stratum, `--no-test` + bounded `evaluate --max-batches 6` | 384 test rows: repeat-bucket NDCG@10 0.0219 vs explore 0.0; event repeat rate 0.237 (all targets) / 0.582 (known catalog); observed time NLL 13.17, censored survival NLL 0.547; four-cell metrics + prior/elapsed/history-elapsed comparisons produced with full coverage accounting (166/384 OOV targets, 127 censored) |
+
+Commands (as executed):
+
+```powershell
+# the subset file was written by filtering the raw file to the June 1-14 2010 window
+python -m adrec_still train --data results\bounded_gowalla\raw\gowalla_20100601_20100614.txt --adapter gowalla --model global_pop --device cpu --output results\bounded_gowalla\global_pop --cache-dir results\bounded_gowalla\cache --workers 4
+python -m adrec_still train --data results\bounded_gowalla\cache\processed --model sasrec_h --device cpu --epochs 2 --batch-size 128 --max-train-batches 80 --validation-max-batches 20 --validation-horizon 0 --output results\bounded_gowalla\sasrec_h --set embedding_dim=64 --set hidden_dim=64 --set training.negative_samples=64
+python -m adrec_still train --data results\bounded_gowalla\cache\processed --cache-dir results\bounded_gowalla\cache --model adrec_still --device cpu --epochs 2 --batch-size 64 --max-train-batches 60 --validation-max-batches 5 --validation-horizon 0 --no-test --output results\bounded_gowalla\adrec_still --set hidden_size=64 --set diffusion_steps=16 --set time_samples=1 --set training.negative_samples=64
+python -m adrec_still evaluate --data results\bounded_gowalla\cache\processed --checkpoint results\bounded_gowalla\adrec_still\best.pt --splits test --device cpu --batch-size 64 --max-batches 6 --output results\bounded_gowalla\adrec_still\evaluation.json
+```
+
+The full Gowalla file and the Foursquare NYC/TKY raw files have **not** been
+trained here (the TSMC2014 raw files are not present on this machine); the
+full-scale commands in this document are provided for those runs, not yet
+executed.
 
 ## See also
 
