@@ -33,6 +33,11 @@ BACKENDS: dict[str, dict[str, str]] = {
     "still_joint": {"family": "still", "kind": "neural"},
     # external
     "external_joint_lnm": {"family": "external", "kind": "neural"},
+    # upstream ADRec fork (event-only models; staged trainer)
+    "adrec": {"family": "upstream", "kind": "neural"},
+    "diffurec": {"family": "upstream", "kind": "neural"},
+    "dreamrec": {"family": "upstream", "kind": "neural"},
+    "sasrec_upstream": {"family": "upstream", "kind": "neural"},
 }
 
 _SASREC = {
@@ -50,6 +55,22 @@ _STILL = {
     "num_layers": 2,
     "dropout": 0.2,
     "mixture_components": 2,
+}
+_UPSTREAM = {
+    "hidden_size": 128,
+    "max_len": 50,
+    "dropout": 0.1,
+    "emb_dropout": 0.3,
+    "ce_chunk_tokens": 4096,
+}
+_UPSTREAM_DIFFUSION = {
+    **_UPSTREAM,
+    "diffusion_steps": 32,
+    "noise_schedule": "trunc_lin",
+    "schedule_sampler_name": "uniform",
+    "lambda_uncertainty": 0.001,
+    "rescale_timesteps": True,
+    "cfg_scale": 1.0,
 }
 
 #: Constructor defaults per backend (the committed YAML values).
@@ -89,6 +110,14 @@ MODEL_DEFAULTS: dict[str, dict[str, Any]] = {
         "mark_embedding_dim": 16, "context_dim": 32, "num_layers": 1, "dropout": 0.0,
         "mixture_components": 2, "log_time_statistics": "fit_train_unique_gaps",
     },
+    "adrec": {
+        **_UPSTREAM_DIFFUSION, "independent": True, "geodesic": False,
+        "dif_decoder": "att", "is_causal": True, "loss_scale": 1.0,
+        "embedding_pretrain": True, "inference_steps": None,
+    },
+    "diffurec": dict(_UPSTREAM_DIFFUSION),
+    "dreamrec": dict(_UPSTREAM_DIFFUSION),
+    "sasrec_upstream": dict(_UPSTREAM),
 }
 
 #: The shared neural training recipe. ``early_stopping_metric`` is absent on
@@ -109,6 +138,25 @@ TRAINING_DEFAULTS: dict[str, Any] = {
     "selection_horizon_sec": None,
     "validation_max_batches": None,
     "tf32": False,
+}
+
+#: The upstream family's staged training recipe (fork values where they exist;
+#: every stage budget is adjustable, down to one epoch per stage for smoke runs).
+UPSTREAM_TRAINING_DEFAULTS: dict[str, Any] = {
+    "optimizer": "adam",
+    "learning_rate": 0.001,
+    "weight_decay": 1.0e-5,
+    "batch_size": 256,
+    "max_epochs": 20,
+    "early_stopping_patience": 5,
+    "eval_interval": 1,
+    "pretrain_epochs": 10,
+    "warmup_epochs": 5,
+    "scheduler_t_max": 500,
+    "pcgrad": False,
+    "early_stopping_metric": "ndcg@10",
+    "selection_horizon_sec": None,
+    "validation_max_batches": None,
 }
 
 #: Training profile each backend trains under by default.
@@ -139,7 +187,9 @@ def backend(name: str) -> dict[str, str]:
 def default_model_config(name: str) -> dict[str, Any]:
     info = backend(name)
     config: dict[str, Any] = {"name": name, "family": info["family"], **MODEL_DEFAULTS[name]}
-    if info["kind"] == "neural":
+    if info["family"] == "upstream":
+        config["training"] = dict(UPSTREAM_TRAINING_DEFAULTS)
+    elif info["kind"] == "neural":
         training = dict(TRAINING_DEFAULTS)
         if name in TRAINING_PROFILE_DEFAULTS:
             training["training_profile"] = TRAINING_PROFILE_DEFAULTS[name]

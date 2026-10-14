@@ -303,11 +303,24 @@ def run(spec: RunSpec) -> dict[str, Any]:
         info = backend(config["name"])
         data_path = spec.data if spec.data is not None else source.get("processed_root")
         if data_path is None:
-            raise RunFailed("pass --data (a canonical directory or a raw check-in file)")
-        data = resolve_data(
-            data_path, adapter=spec.adapter, poi_file=spec.poi_file, cache_dir=cache_dir,
-            workers=spec.workers, row_limit=spec.row_limit, reporter=reporter,
-        )
+            raise RunFailed("pass --data (a canonical directory, a raw check-in file, "
+                            "or an upstream dataset.pkl)")
+        if Path(data_path).is_file() and Path(data_path).suffix == ".pkl":
+            if info["family"] != "upstream":
+                raise RunFailed(
+                    f"model {config['name']} needs event timestamps, and dataset.pkl "
+                    "files carry none (only per-user item orderings); only the "
+                    "upstream event-only models (adrec, diffurec, dreamrec, "
+                    "sasrec_upstream) train on dataset.pkl"
+                )
+            from adrec_still.training.upstream_runner import PklDataSource
+
+            data = PklDataSource(Path(data_path))
+        else:
+            data = resolve_data(
+                data_path, adapter=spec.adapter, poi_file=spec.poi_file, cache_dir=cache_dir,
+                workers=spec.workers, row_limit=spec.row_limit, reporter=reporter,
+            )
         evaluation = resolve_evaluation(spec, source, data)
         device = resolve_device(spec.device or (config.get("training") or {}).get("device"))
         set_global_seed(int(spec.seed))
@@ -328,7 +341,16 @@ def run(spec: RunSpec) -> dict[str, Any]:
             "torch": str(torch.__version__),
             "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)),
         }
-        if info["kind"] == "floor":
+        if info["family"] == "upstream":
+            from adrec_still.training.upstream_runner import run_upstream
+
+            training, policy = resolve_training(spec, config, data)
+            summary = run_upstream(
+                spec, config, data, evaluation, device, reporter, record, output,
+                training, policy,
+            )
+            summary["service_version"] = SERVICE_VERSION
+        elif info["kind"] == "floor":
             summary = _run_floor(spec, config, data, evaluation, reporter, record, output)
         else:
             summary = _run_neural(
