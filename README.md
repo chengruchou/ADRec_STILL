@@ -1,3 +1,39 @@
+# ADRec-STILL
+
+This fork extends the upstream ADRec (KDD 2025) implementation with
+**`adrec_still`**, an installable Python package for silence-aware next-POI
+recommendation on an ADRec diffusion backbone. It combines:
+
+- the upstream ADRec/DiffuRec/DreamRec/SASRec+ cores, ported behind a shared
+  interface with their execution fixes (see `docs/MIGRATION.md`);
+- the STILL donor code (data pipeline, survival/censoring machinery,
+  baselines, evaluation protocol), ported from
+  https://github.com/chengruchou/STILL;
+- the new ADRec-STILL extension family: observable repeat/explore branches,
+  per-branch lognormal time mixtures with survivor reweighting, and a
+  four-silence-cell readout of the joint forecast.
+
+```powershell
+pip install -e .
+python -m adrec_still models
+python -m adrec_still train --model adrec_still --data <raw check-in file or canonical directory> --output runs\my-run
+```
+
+Documentation:
+
+- [docs/TRAINING.md](docs/TRAINING.md) — environment setup, data inputs, every
+  CLI command, checkpoints/resume, smoke vs full runs.
+- [docs/MIGRATION.md](docs/MIGRATION.md) — what was ported from where, what was
+  deliberately not ported, and every behavior change against the sources.
+- [docs/MODELING.md](docs/MODELING.md) — the joint law, branches, losses,
+  inference, the four silence cells, and the backend capability table.
+
+The upstream fork (`src/`, `datasets/`) is unchanged and keeps its own entry
+point; the original ADRec README follows below, including its citation and
+acknowledgements.
+
+---
+
 # ADRec: Unlocking the Power of Diffusion Models in Sequential Recommendation [![Static Badge](https://img.shields.io/badge/Cite--us-007ec6?style=flat-square&logo=google-scholar&logoColor=white)](#-citation) [ArXiv](https://arxiv.org/abs/2505.19544)
 
 An official implementation for the  KDD 2025 paper 'Unlocking the Power of Diffusion Models in Sequential Recommendation: A Simple and Effective Approach'. 
