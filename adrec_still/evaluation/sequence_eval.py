@@ -48,7 +48,6 @@ def evaluate_sequence_corpus(
     started = time.perf_counter()
     totals = dict.fromkeys(RANKING_KEYS, 0.0)
     rows = 0
-    batches = 0
     for batch_index, (history, answer_pad) in enumerate(loader):
         if max_batches is not None and batch_index >= max_batches:
             break
@@ -78,7 +77,6 @@ def evaluate_sequence_corpus(
         for key in RANKING_KEYS:
             totals[key] += float(result["values"][key][eligible].sum())
         rows += count
-        batches = batch_index + 1
         if progress is not None:
             progress(rows, len(dataset))
     summary: dict[str, Any] = {
