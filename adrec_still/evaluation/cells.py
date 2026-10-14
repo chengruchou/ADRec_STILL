@@ -61,7 +61,7 @@ def cell_labels(
     early = torch.zeros(rows, dtype=torch.bool)
     threshold_s = cell_time_threshold_hours * 3600.0
     reasons = {"censored": 0, "no_gap_id": 0, "oov_target": 0, "no_home": 0,
-               "target_not_geocoded": 0, "labeled": 0}
+               "target_not_geocoded": 0, "labeled": 0, "causal_home_fallback": 0}
     for row in range(rows):
         if gap_ids[row] is None:
             reasons["no_gap_id"] += 1
@@ -80,7 +80,11 @@ def cell_labels(
             continue
         home = index.home(gap_ids[row], policy=home_policy)
         if home is None and home_policy == "frozen":
+            # No pre-cutoff activity center: fall back to the causal prefix and
+            # count the fallback, so coverage stays honest.
             home = index.home(gap_ids[row], policy="causal")
+            if home is not None:
+                reasons["causal_home_fallback"] += 1
         if home is None:
             reasons["no_home"] += 1
             continue
