@@ -361,6 +361,7 @@ def train_staged_model(model, plan: StagedPlan) -> dict[str, Any]:
                 best = None
                 best_state = None
             bad_epochs = 0
+            stage_epoch = stage_start_epoch  # resumes at a stage boundary skip the loop
             with reporter.phase(f"stage-{stage_name}"):
                 for stage_epoch in range(stage_start_epoch + 1, stage_budget + 1):
                     epoch_started = time.time()
