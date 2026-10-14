@@ -248,6 +248,65 @@ flowchart LR
     SC --> CELL["cell readout:<br/>P(cell given H, T &gt; s)"]
 ```
 
+### End-to-end training and evaluation flow
+
+One `python -m adrec_still train` run, in execution order. Green nodes are the
+paths this fork adds; orange nodes are the explicit-refusal / interruption
+safeguards.
+
+```mermaid
+flowchart TD
+
+START(["python -m adrec_still train --data … --model … --output …"])
+START --> SPEC["parse CLI into a RunSpec<br/>RunLock the output directory · fix the seed"]
+SPEC --> DTYPE{"what is --data?"}
+
+DTYPE -->|"dataset.pkl"| PKLQ{"upstream-family model?"}
+PKLQ -->|"no"| PKLERR[/"explicit error: pkl carries no timestamps,<br/>so time/silence/cells are unavailable"/]
+PKLQ -->|"yes"| PKLLOAD["load per-user sequences<br/>(item IDs shifted +1; PAD/UNK reserved)"]
+
+DTYPE -->|"raw check-in file"| PRE["preprocess (reused on a cache hit)<br/>clean (Latin-1 / UTC policy)<br/>→ global chronological 70/10/20 split<br/>→ frozen vocab + POI catalog<br/>→ events / split_manifest / landmarks"]
+DTYPE -->|"canonical directory<br/>(incl. old-STILL output)"| CANON["load the canonical artifacts<br/>(non-empty, train split present)"]
+
+PRE --> CFG
+CANON --> CFG
+PKLLOAD --> CFG
+CFG["resolve model config + training block<br/>no validation split → labeled train-loss selection"]
+
+CFG --> FAM{"family dispatch"}
+
+FAM -->|"floor (x8)"| FIT["fit statistics<br/>(_s: destination survival;<br/>step mode answers any s)"]
+FAM -->|"baseline / still / external"| VIEW1["prepare the training view:<br/>canonical landmarks / event-only / survival"]
+FAM -->|"upstream (x4)"| SEQ2["build per-user pre-cutoff sequences<br/>(strict train cutoff; no future reads)"]
+FAM -->|"adrec_still (x5)"| VIEW2["survival view → its s=0 gap-censor rows<br/>build the FullHistoryIndex<br/>(raw-ID repeat labels / seen sets / homes)"]
+
+VIEW1 --> LOOP["shared epoch loop<br/>training_step → count-weighted loss<br/>validate each epoch (exact ranking)<br/>best on improvement · atomic last each epoch"]
+VIEW2 --> LOOP2["same shared loop + per-row survival losses:<br/>observed labeled −log pi_b − log f_b(T)<br/>observed unlabeled: branch-marginal<br/>censored: −log Σ_b pi_b S_b(C) (target-free)<br/>+ branch-restricted CE + diffusion MSE (logged apart)"]
+SEQ2 --> STAGED["staged trainer:<br/>1 pretrain (position-free SASRec, embedding handover)<br/>2 warmup (embedding frozen)<br/>3 finetune (unfrozen, early stopping)<br/>stage switch → selection scope reset"]
+
+FIT --> BEST
+LOOP --> INT{"Ctrl+C?"}
+LOOP2 --> INT
+STAGED --> INT
+INT -->|"yes"| KEEP[/"keep the last complete last.pt,<br/>report interrupted (resume with --resume)"/]
+INT -->|"no"| BEST["reload the selection scope's best weights<br/>(eval mode)"]
+
+BEST --> TEST["final test evaluation:<br/>exact chunked full-catalog ranking<br/>(float64 · deterministic ties · per-horizon buckets)"]
+TEST --> ISNEW{"family = adrec_still?"}
+
+ISNEW -->|"yes"| FORE["SilenceForecast:<br/>1 pi_cat support projection → kappa_b(s)<br/>2 early/late x branch strata (analytic mass)<br/>3 truncated T samples (prior x survivor first)<br/>4 reverse diffusion (noise reused across chunks)<br/>5 repeat/explore decoders → probability average<br/>6 cell readout (one normalization + unresolved mass)"]
+FORE --> SILM["silence metrics:<br/>repeat/explore ranking splits · repeat rates + calibration<br/>observed/censored time NLL · poi_nll_mc / joint_nll_mc<br/>cell NLL/Brier/F1/confusion + prior/elapsed baselines"]
+SILM --> OUT2
+ISNEW -->|"no"| OUT2
+
+OUT2(["results/&lt;run&gt;/: last.pt · best.pt · config.json<br/>metrics.jsonl · summary.json<br/>(re-evaluate later with `evaluate`; tabulate with `collect`)"])
+
+classDef new fill:#1a7f37,stroke:#116329,color:#ffffff
+classDef guard fill:#b35900,stroke:#7a3d00,color:#ffffff
+class VIEW2,LOOP2,STAGED,FORE,SILM new
+class PKLERR,KEEP guard
+```
+
 ## Backend capability table
 
 All 27 registered backends (`python -m adrec_still models`). "Time" means the
