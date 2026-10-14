@@ -361,6 +361,11 @@ def train_staged_model(model, plan: StagedPlan) -> dict[str, Any]:
                 best = None
                 best_state = None
             bad_epochs = 0
+            # A resume may land on a stage whose budget is already exhausted (the
+            # interrupt happened right after its last epoch); the loop below then
+            # runs zero epochs and ``stage_epoch`` must still name the last
+            # completed epoch for the stage-history record.
+            stage_epoch = stage_start_epoch
             with reporter.phase(f"stage-{stage_name}"):
                 for stage_epoch in range(stage_start_epoch + 1, stage_budget + 1):
                     epoch_started = time.time()

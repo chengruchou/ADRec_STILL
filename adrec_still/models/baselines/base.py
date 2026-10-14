@@ -90,6 +90,9 @@ class BaselinePrediction:
     context: torch.Tensor
     time_prediction: LogNormalPrediction | None = None
     time_distribution: ResidualTimeDistribution | None = None
+    #: Optional model-specific diagnostics (e.g. forecast repeat probabilities);
+    #: consumers read it through ``getattr(prediction, "extras", None)``.
+    extras: dict[str, Any] | None = None
 
     def validate(self, number_of_pois: int, check_finite: bool = True) -> None:
         """Check the published output contract.
