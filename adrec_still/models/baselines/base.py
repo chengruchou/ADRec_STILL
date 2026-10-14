@@ -91,7 +91,8 @@ class BaselinePrediction:
     time_prediction: LogNormalPrediction | None = None
     time_distribution: ResidualTimeDistribution | None = None
     #: Optional forecast extras (repeat probabilities, MC metadata); consumers
-    #: that do not know a key must ignore it.
+    #: read it through ``getattr(prediction, "extras", None)`` and must ignore
+    #: keys they do not know.
     extras: dict[str, Any] | None = None
 
     def validate(self, number_of_pois: int, check_finite: bool = True) -> None:
