@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 import torch
 
 from adrec_still.data import (
@@ -162,7 +162,11 @@ def test_survival_weights_cover_completed_unknown_and_positive_censor_rows():
     assert weights[:3].sum().item() == pytest.approx(1)
     assert weights[3:].sum().item() == pytest.approx(1)
     permutation = torch.tensor([4, 1, 3, 0, 2])
-    shuffled = {key: value[permutation] for key, value in batch.items()}
+    shuffled = {
+        key: value[permutation] if isinstance(value, torch.Tensor)
+        else [value[i] for i in permutation.tolist()]
+        for key, value in batch.items()
+    }
     torch.testing.assert_close(
         survival_landmark_weights(shuffled, landmark_seconds=schedule), weights[permutation]
     )

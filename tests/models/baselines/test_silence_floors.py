@@ -1,4 +1,4 @@
-"""Matched controls for empirical, destination-dependent silence floor variants."""
+﻿"""Matched controls for empirical, destination-dependent silence floor variants."""
 
 import json
 from pathlib import Path
@@ -102,7 +102,10 @@ def test_query_future_labels_and_calendar_fields_cannot_change_prediction(name, 
     model = fitted(name, processed)
     batch = query()
     expected = model.predict(batch).poi_logits
-    poisoned = {key: value.clone() for key, value in batch.items()}
+    poisoned = {
+        key: value.clone() if isinstance(value, torch.Tensor) else list(value)
+        for key, value in batch.items()
+    }
     poisoned["next_poi"].fill_(7)
     poisoned["observed_mask"].fill_(False)
     poisoned["censored_mask"].fill_(True)

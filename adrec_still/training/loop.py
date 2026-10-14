@@ -25,6 +25,7 @@ from torch.utils.data import DataLoader, Dataset
 from adrec_still.data.collate import collate_canonical_samples
 from adrec_still.data.training_views import EVENT_ONLY_TRAINING_PROFILE
 from adrec_still.models.baselines.trainer import (
+    SURVIVAL_LOSS_PROFILES,
     TRAINER_VERSION,
     WEIGHTING_CONTRACTS,
     apply_precision_policy,
@@ -107,13 +108,14 @@ def train_model(model, plan: TrainingPlan) -> dict[str, Any]:
     source_row_count = getattr(plan.train_source, "source_row_count", len(plan.train_source))
     if event_only and len(train_source) == 0:
         raise ValueError("event-only training has no eligible observed known-target s=0 rows")
-    survival_profile = settings.get("training_profile") == SURVIVAL_TRAINING_PROFILE
+    profile = settings.get("training_profile")
+    survival_profile = profile in SURVIVAL_LOSS_PROFILES
     if survival_profile and not callable(
         getattr(model, "per_row_survival_training_losses", None)
     ):
         raise TypeError(
             f"{type(model).__name__} exposes no per_row_survival_training_losses, so it "
-            f"cannot execute the {SURVIVAL_TRAINING_PROFILE!r} profile"
+            f"cannot execute the {profile!r} profile"
         )
 
     monitor = settings["early_stopping_metric"]

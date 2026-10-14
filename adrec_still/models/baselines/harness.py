@@ -28,7 +28,7 @@ import torch
 import yaml
 from torch.utils.data import DataLoader
 
-from adrec_still.data.collate import collate_canonical_samples
+from adrec_still.data.collate import collate_canonical_samples, select_batch_rows
 from adrec_still.data.dataset import LandmarkDataset
 from adrec_still.evaluation.evaluator import evaluate, write_evaluation_json
 from adrec_still.models.baselines.base import BASELINE_INTERFACE_VERSION, BaselineModel
@@ -257,7 +257,7 @@ def evaluate_split(
             break
         for horizon in torch.unique(batch["query_s_sec"]).tolist():
             rows = batch["query_s_sec"].eq(horizon)
-            sub_batch = {key: value[rows] for key, value in batch.items()}
+            sub_batch = select_batch_rows(batch, rows)
             prediction = model.predict(sub_batch)
             prediction.validate(model.number_of_pois, check_finite=not checked_output_contract)
             checked_output_contract = True

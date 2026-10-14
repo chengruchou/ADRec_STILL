@@ -30,7 +30,11 @@ import pyarrow.parquet as pq
 import torch
 from torch.utils.data import DataLoader
 
-from adrec_still.data.collate import collate_canonical_samples
+from adrec_still.data.collate import (
+    collate_canonical_samples,
+    select_batch_rows,
+    slice_batch_rows,
+)
 from adrec_still.data.dataset import LandmarkDataset
 from adrec_still.evaluation.exact import (
     EXACT_VERSION,
@@ -219,10 +223,10 @@ def evaluate_split(
         ready = []
         start = 0
         while total - start >= size:
-            ready.append({key: value[start:start + size] for key, value in merged.items()})
+            ready.append(slice_batch_rows(merged, start, start + size))
             start += size
         if start < total:
-            rest = {key: value[start:] for key, value in merged.items()}
+            rest = slice_batch_rows(merged, start, None)
             if final:
                 ready.append(rest)
                 buffer, buffered_rows = [], 0
@@ -245,7 +249,7 @@ def evaluate_split(
                 rows = batch["query_s_sec"].eq(int(horizon))
                 if not bool(rows.any()):
                     continue
-                batch = {key: value[rows] for key, value in batch.items()}
+                batch = select_batch_rows(batch, rows)
                 buffer.append(batch)
                 buffered_rows += int(rows.sum())
                 if buffered_rows < options.batch_size:
@@ -281,8 +285,11 @@ def evaluate_split(
 def _merge_batches(parts: list[dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
     """Concatenate collated batches; histories are left-padded to the widest part."""
     width = max(int(part["history_poi"].shape[1]) for part in parts)
-    merged: dict[str, torch.Tensor] = {}
+    merged: dict[str, Any] = {}
     for key in parts[0]:
+        if not isinstance(parts[0][key], torch.Tensor):
+            merged[key] = [item for part in parts for item in part[key]]
+            continue
         pieces = []
         for part in parts:
             tensor = part[key]

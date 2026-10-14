@@ -1,4 +1,4 @@
-"""A matched event-only arm changes training exposure without changing SASRec-H."""
+﻿"""A matched event-only arm changes training exposure without changing SASRec-H."""
 
 import json
 from dataclasses import replace
@@ -101,7 +101,7 @@ def test_profile_mismatch_is_refused_before_any_optimizer(model_class, profile, 
 
     monkeypatch.setattr(torch.optim, "Adam", forbidden)
     plan = TrainingPlan([sample()], settings(training_profile=profile), seed=41)
-    with pytest.raises(ValueError, match="SASRecEventOnly requires"):
+    with pytest.raises(ValueError, match="event-only capability must agree"):
         train_model(model(model_class), plan)
 
 

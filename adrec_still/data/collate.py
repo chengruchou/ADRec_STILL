@@ -9,6 +9,31 @@ import torch
 from adrec_still.data.schema import PADDING_POI_ID, CanonicalSample
 
 
+def move_batch(batch: dict[str, Any], device) -> dict[str, Any]:
+    """Tensors to the device; non-tensor fields (gap_id strings) pass through."""
+    return {
+        key: value.to(device) if isinstance(value, torch.Tensor) else value
+        for key, value in batch.items()
+    }
+
+
+def select_batch_rows(batch: dict[str, Any], keep: torch.Tensor) -> dict[str, Any]:
+    """Row selection that keeps tensor and list fields aligned."""
+    flags = keep.tolist()
+    return {
+        key: value[keep] if isinstance(value, torch.Tensor)
+        else [item for item, flag in zip(value, flags) if flag]
+        for key, value in batch.items()
+    }
+
+
+def slice_batch_rows(batch: dict[str, Any], start: int, stop: int | None) -> dict[str, Any]:
+    """Contiguous row slice over tensor and list fields alike."""
+    return {
+        key: value[start:stop] for key, value in batch.items()
+    }
+
+
 def collate_canonical_samples(
     samples: list[CanonicalSample],
     max_sequence_length: int | None = None,
@@ -71,4 +96,7 @@ def collate_canonical_samples(
             ],
             dtype=torch.float64,
         ),
+        # Anchor identities (strings, not tensors): causal anchor-event names for
+        # full-memory lookups; None entries mean the source carried no gap_id.
+        "gap_id": [sample.gap_id for sample in samples],
     }

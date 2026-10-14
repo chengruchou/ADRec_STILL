@@ -17,7 +17,10 @@ from typing import Any
 import torch
 
 from adrec_still.data.dataset import LandmarkDataset
-from adrec_still.data.training_views import EVENT_ONLY_TRAINING_PROFILE
+from adrec_still.data.training_views import (
+    EVENT_ONLY_TRAINING_PROFILE,
+    GAP_CENSOR_TRAINING_PROFILE,
+)
 from adrec_still.models.baselines.harness import build_fitted_model
 from adrec_still.models.baselines.trainer import build_baseline_model
 from adrec_still.models.external.registry import EXTERNAL_MODEL_FAMILY, build_external_model
@@ -42,6 +45,10 @@ def build_model(model_config: dict[str, Any], number_of_pois: int):
         return build_still_model(config, number_of_pois)
     if family == EXTERNAL_MODEL_FAMILY:
         return build_external_model(config, number_of_pois)
+    if family == "adrec_still":
+        from adrec_still.models.adrec_still.registry import build_adrec_still_model
+
+        return build_adrec_still_model(config, number_of_pois)
     raise ValueError(f"unknown model family: {family}")
 
 
@@ -104,6 +111,17 @@ def prepare_training_source(
         view, manifest = survival_view(data, cache_dir, reporter=reporter)
         return LandmarkDataset(view, split="train"), {
             "training_view": SURVIVAL_TRAINING_PROFILE,
+            "survival_view": str(view),
+            "survival_profile_id": manifest.get("profile_id"),
+        }
+    if profile == GAP_CENSOR_TRAINING_PROFILE:
+        # Same leakage-safe survival view, filtered to its s=0 rows: one base
+        # training row per actual gap, censored exposures included.
+        view, manifest = survival_view(data, cache_dir, reporter=reporter)
+        return LandmarkDataset(
+            view, split="train", training_view=GAP_CENSOR_TRAINING_PROFILE
+        ), {
+            "training_view": GAP_CENSOR_TRAINING_PROFILE,
             "survival_view": str(view),
             "survival_profile_id": manifest.get("profile_id"),
         }

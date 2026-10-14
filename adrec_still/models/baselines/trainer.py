@@ -33,10 +33,13 @@ from typing import Any
 import torch
 from torch.utils.data import Dataset, RandomSampler, Sampler, Subset
 
+from adrec_still.data.collate import move_batch, select_batch_rows
 from adrec_still.data.dataset import LandmarkDataset
 from adrec_still.data.training_views import (
     EVENT_ONLY_TRAINING_PROFILE,
     EVENT_ONLY_WEIGHTING_CONTRACT,
+    GAP_CENSOR_TRAINING_PROFILE,
+    GAP_CENSOR_WEIGHTING_CONTRACT,
     event_only_sample_eligible,
     event_only_training_mask,
 )
@@ -163,7 +166,12 @@ WEIGHTING_CONTRACTS: dict[str, str] = {
     EVENT_ONLY_TRAINING_PROFILE: EVENT_ONLY_WEIGHTING_CONTRACT,
     TRAINING_PROFILE: WEIGHTING_CONTRACT_VERSION,
     SURVIVAL_TRAINING_PROFILE: SURVIVAL_WEIGHTING_CONTRACT_VERSION,
+    GAP_CENSOR_TRAINING_PROFILE: GAP_CENSOR_WEIGHTING_CONTRACT,
 }
+
+#: Profiles whose rows carry the three-way survival loss partition (observed-known,
+#: observed-unknown, censored). The gap-censor profile is the s=0-only member.
+SURVIVAL_LOSS_PROFILES = (SURVIVAL_TRAINING_PROFILE, GAP_CENSOR_TRAINING_PROFILE)
 
 #: First non-reserved POI ID (padding and unknown are never candidates).
 FIRST_CATALOG_POI_ID = 2
@@ -388,17 +396,21 @@ def select_training_rows(
     dropped; the returned count is the number of excluded rows.
     """
     keep = batch["observed_mask"].bool() & batch["target_in_train_catalog"].bool()
-    kept = {key: value[keep] for key, value in batch.items()}
+    kept = select_batch_rows(batch, keep)
     return kept, int((~keep).sum())
 
 
 def validate_event_only_profile(model: BaselineModel, training: dict[str, Any]) -> bool:
     """Refuse a model/profile mismatch before selection, allocation or gradients."""
     event_only = training.get("training_profile") == EVENT_ONLY_TRAINING_PROFILE
-    if event_only != isinstance(model, SASRecEventOnly):
+    capable = isinstance(model, SASRecEventOnly) or bool(
+        getattr(model, "trains_event_only", False)
+    )
+    if event_only != capable:
         raise ValueError(
-            f"SASRecEventOnly requires training_profile={EVENT_ONLY_TRAINING_PROFILE!r}; "
-            "this profile is reserved for sasrec_event_only"
+            f"training_profile={EVENT_ONLY_TRAINING_PROFILE!r} and the model's "
+            "event-only capability must agree; this profile is reserved for models "
+            "that train once per gap at s=0 with known targets"
         )
     if event_only and training["landmark_weighting"] != "per_gap":
         raise ValueError("event-only training requires per_gap: one unit-weight row per gap")
@@ -501,11 +513,11 @@ def training_step(
 ) -> dict[str, Any]:
     """One forward pass; returns the loss tensor with its weights and row counts."""
     event_only = validate_event_only_profile(model, training)
-    batch = {key: value.to(device) for key, value in batch.items()}
-    survival_profile = training.get("training_profile") == SURVIVAL_TRAINING_PROFILE
+    batch = move_batch(batch, device)
+    survival_profile = training.get("training_profile") in SURVIVAL_LOSS_PROFILES
     if event_only:
         keep = event_only_training_mask(batch, model.number_of_pois)
-        kept = {key: value[keep] for key, value in batch.items()}
+        kept = select_batch_rows(batch, keep)
         excluded_rows = int((~keep).sum())
     elif survival_profile:
         kept, excluded_rows = batch, 0
@@ -517,7 +529,16 @@ def training_step(
     if survival_profile:
         if not hasattr(model, "per_row_survival_training_losses"):
             raise TypeError("the survival profile requires a model survival-loss adapter")
-        weights = survival_landmark_weights(kept, mode=training["landmark_weighting"])
+        if training.get("training_profile") == GAP_CENSOR_TRAINING_PROFILE:
+            if (kept["query_s_sec"] != 0).any():
+                raise ValueError(
+                    "the gap-censor profile trains on s=0 rows only; the training "
+                    "source delivered a nonzero query_s_sec row"
+                )
+            # One row per gap: unit weights, no landmark-grid reweighting.
+            weights = torch.ones_like(kept["residual_time_sec"], dtype=torch.float64)
+        else:
+            weights = survival_landmark_weights(kept, mode=training["landmark_weighting"])
         per_row = model.per_row_survival_training_losses(
             kept, int(training["negative_samples"]), generator
         )

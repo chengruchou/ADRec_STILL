@@ -12,7 +12,10 @@ import pyarrow.parquet as pq
 from torch.utils.data import Dataset
 
 from adrec_still.data.schema import CanonicalSample
-from adrec_still.data.training_views import EVENT_ONLY_TRAINING_PROFILE
+from adrec_still.data.training_views import (
+    EVENT_ONLY_TRAINING_PROFILE,
+    GAP_CENSOR_TRAINING_PROFILE,
+)
 
 
 class LandmarkDataset(Dataset[CanonicalSample]):
@@ -23,7 +26,8 @@ class LandmarkDataset(Dataset[CanonicalSample]):
     ) -> None:
         if split is not None and split not in {"train", "validation", "test"}:
             raise ValueError(f"unsupported split: {split}")
-        if training_view not in {None, EVENT_ONLY_TRAINING_PROFILE}:
+        if training_view not in {None, EVENT_ONLY_TRAINING_PROFILE,
+                                 GAP_CENSOR_TRAINING_PROFILE}:
             raise ValueError(f"unsupported training_view: {training_view}")
         if training_view is not None and split != "train":
             raise ValueError("a training_view requires split='train'; evaluation is unchanged")
@@ -51,7 +55,12 @@ class LandmarkDataset(Dataset[CanonicalSample]):
                 eligibility = self.parquet.read_row_group(row_group, columns=columns)
                 keep = pc.equal(eligibility["split"], split)
                 self.source_row_count += int(pc.sum(keep).as_py() or 0)
-                if training_view is not None:
+                if training_view == GAP_CENSOR_TRAINING_PROFILE:
+                    # One s=0 row per gap, observed and censored alike: the base
+                    # distribution trains once per actual gap, with censor rows kept.
+                    keep = pc.and_kleene(keep, pc.equal(eligibility["query_s_sec"], 0))
+                    keep = pc.fill_null(keep, False)
+                elif training_view is not None:
                     for condition in (
                         pc.equal(eligibility["query_s_sec"], 0),
                         eligibility["event_observed"],
@@ -120,6 +129,7 @@ class LandmarkDataset(Dataset[CanonicalSample]):
             residual_time_sec=int(row["residual_time_sec"]) if observed else None,
             next_poi=int(row["next_poi"]) if observed else None,
             censor_time_sec=int(row["censor_time_sec"]) if not observed else None,
+            gap_id=str(row["gap_id"]) if row.get("gap_id") is not None else None,
         )
         sample.validate()
         return sample

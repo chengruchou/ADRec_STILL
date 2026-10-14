@@ -22,6 +22,10 @@ class CanonicalSample:
     temporal_label: str | None = None
     cell_label: str | None = None
     censor_time_sec: int | None = None
+    #: Anchor identity ("dataset:source:next" / ":censored" / ":train-cutoff-*").
+    #: Causal: it names the anchor event, never anything after it. Models that
+    #: keep the full past memory resolve their seen-set through it.
+    gap_id: str | None = None
 
     def validate(self) -> None:
         if len(self.history_poi) != len(self.history_timestamp):

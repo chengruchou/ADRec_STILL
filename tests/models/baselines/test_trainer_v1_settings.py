@@ -1,4 +1,4 @@
-"""The shared training contract: resolved settings, selection and its scorer surface."""
+﻿"""The shared training contract: resolved settings, selection and its scorer surface."""
 
 import json
 import math
@@ -372,7 +372,7 @@ def _target_every_eligible_24h_row(fixture, poi_id: int, destination: Path) -> P
 def test_selection_scores_the_raw_encoder_surface_not_the_renormalized_predict(tmp_path):
     """A float32 log-softmax turns a real raw ordering into an exact tie. Selection
     scores the encoder's raw surface, where the leading POI ranks first."""
-    from adrec_still.data.collate import collate_canonical_samples
+    from adrec_still.data.collate import collate_canonical_samples, select_batch_rows
     from adrec_still.evaluation.exact import dense_exact_contributions
 
     fixture = write_synthetic_benchmark(tmp_path / "tables")
@@ -388,7 +388,7 @@ def test_selection_scores_the_raw_encoder_surface_not_the_renormalized_predict(t
         [dataset[i] for i in range(len(dataset))], max_sequence_length=8
     )
     rows = batch["query_s_sec"].eq(86400)
-    sub_batch = {key: value[rows] for key, value in batch.items()}
+    sub_batch = select_batch_rows(batch, rows)
     normalized = model.predict(sub_batch).poi_logits
     assert model.RAW_MARGIN > 0.0
     assert torch.equal(normalized[:, _NearTieEncoder.LEADING_POI], normalized[:, 2])
@@ -471,7 +471,7 @@ def test_fixture_smoke_selects_on_the_real_24h_rows_via_the_exact_adapter(tmp_pa
     """No stub: end-to-end selection on the fixture's 24h risk set. The recorded value
     reproduces through an independent pass of the encoder scorer, and (the trained
     scores being untied) agrees with the dense v0.2 block to rounding."""
-    from adrec_still.data.collate import collate_canonical_samples
+    from adrec_still.data.collate import collate_canonical_samples, select_batch_rows
     from adrec_still.evaluation.exact import exact_ranking_contributions
     from adrec_still.evaluation.scoring import INFERENCE_FIELDS, encoder_candidate_factory
     from adrec_still.models.baselines.harness import evaluate_split as harness_evaluate_split
@@ -487,7 +487,7 @@ def test_fixture_smoke_selects_on_the_real_24h_rows_via_the_exact_adapter(tmp_pa
         [dataset[i] for i in range(len(dataset))], max_sequence_length=8
     )
     rows = batch["query_s_sec"].eq(86400)
-    sub_batch = {key: value[rows] for key, value in batch.items()}
+    sub_batch = select_batch_rows(batch, rows)
     features = {key: sub_batch[key].clone() for key in INFERENCE_FIELDS}
     contributions = exact_ranking_contributions(
         encoder_candidate_factory(model)(features),

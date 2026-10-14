@@ -11,6 +11,13 @@ from adrec_still.data.schema import UNKNOWN_POI_ID, CanonicalSample
 EVENT_ONLY_TRAINING_PROFILE = "still-event-only-observed-known-v1"
 EVENT_ONLY_WEIGHTING_CONTRACT = "still-event-gap-weighting-v1"
 
+#: ADRec-STILL gap profile: the survival training view filtered to its s=0 rows,
+#: so every actual gap trains the base distribution exactly once (observed rows)
+#: and every terminal exposure contributes one censor row. Weighting is the
+#: trivial per-row unit weight; landmark-grid reweighting does not apply.
+GAP_CENSOR_TRAINING_PROFILE = "adrec-still-gap-censor-v1"
+GAP_CENSOR_WEIGHTING_CONTRACT = "adrec-still-gap-unit-weighting-v1"
+
 
 def event_only_sample_eligible(sample: CanonicalSample) -> bool:
     """Keep one existing, positive-duration, known-target s=0 row per gap.
