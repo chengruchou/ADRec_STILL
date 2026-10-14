@@ -1,0 +1,11 @@
+name: brightkite
+protocol_version: v0.1
+raw_root: data/raw/brightkite
+processed_root: data/processed/brightkite
+split:
+  type: chronological
+  train: 0.70
+  validation: 0.10
+  test: 0.20
+candidate_horizons_hours: [0, 6, 12, 24, 48, 72, 168]
+preserve_long_gaps: true

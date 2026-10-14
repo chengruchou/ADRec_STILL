@@ -1,0 +1,93 @@
+{
+  "cases": {
+    "all_wrong": {
+      "expected_ranking": {
+        "mrr@1": 0.0,
+        "mrr@2": 0.0,
+        "ndcg@1": 0.0,
+        "ndcg@2": 0.0,
+        "recall@1": 0.0,
+        "recall@2": 0.0,
+        "sample_count": 1
+      },
+      "logits": [
+        [0.0, 100.0, 4.0, 3.0, 2.0]
+      ],
+      "observed_mask": [true],
+      "target_in_train_catalog": [true],
+      "targets": [4]
+    },
+    "censored": {
+      "expected_ranking": {
+        "mrr@1": null,
+        "ndcg@1": null,
+        "observed_target_count": 0,
+        "poi_nll": null,
+        "ranking_coverage": null,
+        "recall@1": null,
+        "sample_count": 0
+      },
+      "logits": [
+        [100.0, 0.0, 0.0, 0.0, 0.0]
+      ],
+      "observed_mask": [false],
+      "target_in_train_catalog": [false],
+      "targets": [0]
+    },
+    "cold_start": {
+      "expected_ranking": {
+        "cold_start_target_count": 1,
+        "mrr@1": null,
+        "ndcg@1": null,
+        "observed_target_count": 1,
+        "poi_nll": null,
+        "ranking_coverage": 0.0,
+        "recall@1": null,
+        "sample_count": 0
+      },
+      "logits": [
+        [0.0, 100.0, 0.0, 0.0, 0.0]
+      ],
+      "observed_mask": [true],
+      "target_in_train_catalog": [false],
+      "targets": [1]
+    },
+    "perfect_oracle": {
+      "expected_ranking": {
+        "mrr@1": 1.0,
+        "mrr@2": 1.0,
+        "ndcg@1": 1.0,
+        "ndcg@2": 1.0,
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "sample_count": 1
+      },
+      "logits": [
+        [0.0, 100.0, 4.0, 3.0, 2.0]
+      ],
+      "observed_mask": [true],
+      "target_in_train_catalog": [true],
+      "targets": [2]
+    },
+    "rank_2": {
+      "expected_ranking": {
+        "mrr@1": 0.0,
+        "mrr@2": 0.5,
+        "ndcg@1": 0.0,
+        "ndcg@2": 0.6309297535714575,
+        "recall@1": 0.0,
+        "recall@2": 1.0,
+        "sample_count": 1
+      },
+      "logits": [
+        [0.0, 100.0, 3.0, 4.0, 2.0]
+      ],
+      "observed_mask": [true],
+      "target_in_train_catalog": [true],
+      "targets": [2]
+    }
+  },
+  "description": "Hand-calculated ranking sanity cases for the shared evaluator v0.2 contract.",
+  "ks": [1, 2],
+  "schema_version": "still-evaluation-v0.2"
+}

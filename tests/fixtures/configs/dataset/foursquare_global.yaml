@@ -1,0 +1,34 @@
+name: foursquare_global
+adapter: foursquare_global
+protocol_version: v0.1
+raw_root: data/raw/dataset_TIST2015
+processed_root: data/processed/foursquare_global
+raw_checkins_filename: dataset_TIST2015_Checkins.txt
+raw_pois_filename: dataset_TIST2015_POIs.txt
+source_page: https://sites.google.com/site/yangdingqi/home/foursquare-dataset
+download_url: https://drive.google.com/file/d/0BwrgZ-IdrTotZ0U0ZER2ejI3VVk/view?resourcekey=0-rlHp_JcRyFAxN7v5OAGldw&usp=sharing
+split:
+  type: chronological
+  train: 0.70
+  validation: 0.10
+  test: 0.20
+candidate_horizons_hours: [0, 6, 12, 24, 48, 72, 168]
+max_history_length: 100
+preserve_long_gaps: true
+processing:
+  workers: 4
+cleaning:
+  invalid_rows: count_and_drop
+  duplicates: exact_rows_only
+  preserve_same_timestamp_different_pois: true
+coverage:
+  scope: 415 high-activity cities in 77 countries, not exhaustive global coverage
+  pilot_only: false
+  category_metadata: category names are audited but are not canonical targets in protocol v0.1
+  country_code_metadata: country-code missingness is audited but is not a protocol v0.1 target
+  timezone_offset_policy: audited only; the independent UTC field defines canonical event time
+  registered_cell_protocols: {}
+  limitations:
+    - Venue coordinates require a join to the separately published POI table.
+    - Missing or invalid POI metadata removes affected check-ins and is reported explicitly.
+    - City inclusion is activity-selected and must not be interpreted as population-representative.

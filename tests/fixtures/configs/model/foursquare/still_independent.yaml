@@ -1,0 +1,66 @@
+# Foursquare city counterpart of configs/model/still_independent.yaml (#69), shared by NYC and TKY.
+# Identical to it except formal_recipe.specification_id: the Foursquare cities execute
+# under still-foursquare-core-v1-20260910, which carries Gowalla's training, evaluation
+# and selection values but is a separate, proposed specification. Comments below that
+# name the Gowalla specification describe where those values were decided.
+#
+name: still_independent
+family: still
+implementation: adrec_still.models.still.independent.StillIndependent
+# Issue #41 direct control arm: the same available history/elapsed/query-clock
+# information as the coherent arm, a directly predicted residual-time log-normal
+# mixture and an independently normalized POI head on the composed shared encoder.
+# mixture_components is the frozen K=2 of still-gowalla-core-v1-20260909 (#37 §1),
+# matching the coherent arm; a K=1 control remains configurable outside the core.
+embedding_dim: 128
+hidden_dim: 128
+num_layers: 2
+dropout: 0.2
+mixture_components: 2
+training:
+  # EXECUTED block: the #39 survival training view and joint selection landed on
+  # main (#60), the lead accepted that contract implementation at its final head
+  # (still.common.acceptance), and the shared trainer executes it. What still blocks
+  # formal mode is per-run: no real-data #38 selection registration is bound to these
+  # artifacts and the experiment is frozen: false (docs/CORE_RECIPE_V1.md).
+  training_profile: still-train-admin-censor-v1
+  landmark_weighting: per_gap
+  optimizer: adam
+  learning_rate: 0.001
+  weight_decay: 0.0
+  betas: [0.9, 0.999]
+  eps: 1.0e-8
+  amsgrad: false
+  scheduler: null
+  gradient_clipping: null
+  amp: false
+  tf32: false
+  gradient_accumulation: 1
+  drop_last: false
+  batch_size: 256
+  # #37 frozen budget: at most 20 complete epochs, patience 5, no min_delta.
+  max_epochs: 20
+  early_stopping_patience: 5
+  min_delta: 0.0
+  # Table 2 selection: complete 24h validation exact joint NLL, minimized. The
+  # shared trainer sources it from the merged #39 joint scorer; the canonical runner
+  # additionally drives per-epoch #38 exact exports through selection_result.
+  early_stopping_metric: joint_nll
+  early_stopping_mode: min
+  selection_horizon_sec: 86400
+  validation_max_batches: null
+  negative_samples: 128
+  device: auto
+formal_recipe:
+  # REQUESTED Table 2 recipe (#37 §1/§4): specification approved, implementation
+  # pending on #39. The runner diagnoses every difference from the executed block
+  # above and refuses formal mode with those concrete reasons.
+  specification_id: still-foursquare-core-v1-20260910
+  table: table2
+  training_profile: still-train-admin-censor-v1
+  weighting_contract: still-survival-gap-weighting-v1
+  selection:
+    metric: joint_nll
+    direction: min
+    horizon_sec: 86400
+    metric_source: accepted-39-joint

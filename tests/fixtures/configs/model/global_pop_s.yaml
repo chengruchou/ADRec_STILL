@@ -1,0 +1,8 @@
+# Original floor settings retained; completed-gap empirical silence control.
+# Fixed alpha pseudo-gap prior uses the pooled survivor fraction, not a time head.
+name: global_pop_s
+family: baseline
+implementation: adrec_still.models.baselines.silence.SilenceAwareFloor
+count_source: train_targets
+smoothing: 1.0
+silence_alpha: 1.0

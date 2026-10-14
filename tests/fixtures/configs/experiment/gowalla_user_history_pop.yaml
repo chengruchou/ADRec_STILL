@@ -1,0 +1,15 @@
+name: gowalla_user_history_pop
+description: Personalized in-history frequency baseline on the frozen Gowalla v0.1 protocol.
+dataset_config: configs/dataset/gowalla.yaml
+model_config: configs/model/user_history_pop.yaml
+manifest: data/manifests/gowalla_v0.1.json
+# UserHistoryPop is deterministic, so one recorded seed is sufficient; the seed
+# is still written into every run record.
+seeds: [41]
+evaluation:
+  splits: [validation, test]
+  batch_size: 128
+  # Must stay <= the model's max_history_length (frequency-first guard).
+  max_sequence_length: 100
+  num_workers: 0
+output_dir: results/baselines/gowalla_user_history_pop

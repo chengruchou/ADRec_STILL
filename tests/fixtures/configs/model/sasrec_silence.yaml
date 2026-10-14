@@ -1,0 +1,4 @@
+name: sasrec_silence
+family: baseline
+silence_conditioning: true
+clock_conditioning: true

@@ -1,0 +1,26 @@
+# Optional extension; default seven-model campaigns remain unchanged.
+name: gowalla_sasrec_event_only
+description: Event-only SASRec-H training control with matched 24h checkpoint selection
+  and seven-horizon evaluation.
+dataset_config: configs/dataset/gowalla.yaml
+model_config: configs/model/sasrec_event_only.yaml
+manifest: data/manifests/gowalla_v0.1.json
+# Proposed extension specification: #82 is open and records no decision, so this is
+# not a frozen research recipe and the formal gate refuses it.
+specification_id: still-gowalla-event-only-v1-20260915
+specification_status: proposed
+frozen: false
+device: cuda:0
+seeds:
+- 41
+- 42
+- 43
+evaluation:
+  splits:
+  - validation
+  - test
+  batch_size: 128
+  chunk_size: 4096
+  max_sequence_length: 100
+  num_workers: 0
+output_dir: results/baselines/gowalla_sasrec_event_only

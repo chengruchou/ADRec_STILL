@@ -1,0 +1,54 @@
+name: synthetic_adrec_h_verification
+description: >-
+  Data-free ADRec-H verification (Issue #29): offline upstream-parity replay plus the
+  128-pair synthetic-learning evidence run scored through the real noise-start
+  predict_next path. Synthetic tensors only; no Gowalla data, evaluator, or shared
+  trainer contracts are involved.
+
+# Candidate convention (synthetic only): id 0 is padding and is excluded from scoring via
+# the finite masked-logit floor; every id in [1, num_items) is an ordinary candidate.
+# There is no canonical unknown/cold-start id here.
+
+model:
+  num_items: 161  # 1 padding + 128 row-unique firsts + 16 shared + 16 targets (validated)
+  embedding_dim: 64
+  num_history_layers: 2
+  num_denoiser_layers: 2
+  num_heads: 2
+  feedforward_dim: 128
+  dropout: 0.0
+  embedding_dropout: 0.0  # declared synthetic choice; upstream's formal 0.3 not required here
+  max_sequence_length: 12
+  diffusion_steps: 32
+  noise_schedule: truncated_linear
+  fusion_lambda: 0.001
+  mse_weight: 1.0
+  rescale_timesteps: true
+
+data:
+  num_pairs: 128
+  num_shared_ids: 16
+  num_target_ids: 16
+  min_history: 3
+  max_history: 8
+  seed: 41
+
+training:
+  seed: 41              # seeds model init and the timestep/noise/batch-order generator
+  stage_schedule:       # declared trainability schedule; upstream's separate SASRec
+    - stage: full_finetune  # stage-1 pretraining is a recorded deviation (see parity.py)
+      steps: 3000
+  optimizer: adam
+  learning_rate: 0.001
+  batch_size: 32
+  batch_sampling: with_replacement_randint
+  checkpoint_rule: final_step  # no validation-based selection
+
+evaluation:
+  inference_noise_seeds: [5101, 5102, 5103]  # fixed panel; every seed scores the same
+                                             # final checkpoint, no post-hoc selection
+  gate:
+    train_recall_at_1: 0.95
+    train_mrr_at_1: 0.95   # single-target top-1: Recall@1 == MRR@1 by definition
+
+parity_fixture: tests/models/adrec/fixtures/upstream_parity_fixture.json

@@ -1,0 +1,21 @@
+name: gowalla
+protocol_version: v0.1
+raw_root: data/raw/gowalla
+processed_root: data/processed/gowalla
+raw_filename: loc-gowalla_totalCheckins.txt
+source_page: https://snap.stanford.edu/data/loc-gowalla.html
+download_url: https://snap.stanford.edu/data/loc-gowalla_totalCheckins.txt.gz
+split:
+  type: chronological
+  train: 0.70
+  validation: 0.10
+  test: 0.20
+candidate_horizons_hours: [0, 6, 12, 24, 48, 72, 168]
+max_history_length: 100
+preserve_long_gaps: true
+processing:
+  workers: 1
+cleaning:
+  invalid_rows: count_and_drop
+  duplicates: exact_rows_only
+  preserve_same_timestamp_different_pois: true

@@ -1,0 +1,59 @@
+name: still_joint
+family: still
+implementation: adrec_still.models.still.coherent.StillCoherentJoint
+# Issue #41 coherent arm: one fixed finite-return log-normal-mixture base joint
+# f(T,y|H) conditioned only on history/anchor metadata; every waiting effect comes
+# from survival conditioning (docs/JOINT_MODEL_PLAN.md). mixture_components is the
+# frozen K=2 of still-gowalla-core-v1-20260909 (#37 §1). variant fixed_pi_truncated
+# is the registered same-checkpoint ablation and is never trained separately.
+embedding_dim: 128
+hidden_dim: 128
+num_layers: 2
+dropout: 0.2
+mixture_components: 2
+variant: survivor_reweighted
+training:
+  # EXECUTED block: identical to configs/model/still_independent.yaml by the fairness
+  # contract (same population, weighting, sampler policy, budget and selection rule).
+  # The contract is accepted (still.common.acceptance); formal mode stays blocked
+  # per run, on the selection binding and the execution contract.
+  training_profile: still-train-admin-censor-v1
+  landmark_weighting: per_gap
+  optimizer: adam
+  learning_rate: 0.001
+  weight_decay: 0.0
+  betas: [0.9, 0.999]
+  eps: 1.0e-8
+  amsgrad: false
+  scheduler: null
+  gradient_clipping: null
+  amp: false
+  tf32: false
+  gradient_accumulation: 1
+  drop_last: false
+  batch_size: 256
+  # #37 frozen budget: at most 20 complete epochs, patience 5, no min_delta.
+  max_epochs: 20
+  early_stopping_patience: 5
+  min_delta: 0.0
+  # Table 2 selection: complete 24h validation exact joint NLL, minimized. The
+  # shared trainer sources it from the merged #39 joint scorer; the canonical runner
+  # additionally drives per-epoch #38 exact exports through selection_result.
+  early_stopping_metric: joint_nll
+  early_stopping_mode: min
+  selection_horizon_sec: 86400
+  validation_max_batches: null
+  negative_samples: 128
+  device: auto
+formal_recipe:
+  # REQUESTED Table 2 recipe (#37 §1/§4): specification approved, implementation
+  # pending on #39; formal mode is refused with the concrete differences.
+  specification_id: still-gowalla-core-v1-20260909
+  table: table2
+  training_profile: still-train-admin-censor-v1
+  weighting_contract: still-survival-gap-weighting-v1
+  selection:
+    metric: joint_nll
+    direction: min
+    horizon_sec: 86400
+    metric_source: accepted-39-joint

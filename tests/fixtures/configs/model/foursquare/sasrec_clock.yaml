@@ -1,0 +1,82 @@
+# Foursquare city counterpart of configs/model/sasrec_clock.yaml (#69), shared by NYC and TKY.
+# Identical to it except formal_recipe.specification_id: the Foursquare cities execute
+# under still-foursquare-core-v1-20260910, which carries Gowalla's training, evaluation
+# and selection values but is a separate, proposed specification. Comments below that
+# name the Gowalla specification describe where those values were decided.
+#
+name: sasrec_clock
+family: baseline
+implementation: adrec_still.models.baselines.sasrec_time.SASRecClock
+# Issue #40 matched time-conditioning control. Query-clock-only arm: it sees when the query falls in the
+# day and the week, but never how long the user has been silent.
+#
+# Every arm of the set builds the same five-column query-time feature vector
+# (elapsed_log1p_hours, query_hour_sin/cos, query_weekday_sin/cos) and the same
+# conditioning module, so the arms have identical parameter counts and identical
+# state_dict structure. A feature this arm cannot see is held at the fixed null
+# 0.0, not removed from the layout. The SASRec encoder, item table, tied output,
+# candidate policy and the training block below are SASRec-H's, unchanged.
+#
+# Visible here: query_hour_sin/cos, query_weekday_sin/cos
+# Nulled here:  elapsed_log1p_hours
+#
+# Feature/mask contract: docs/SASREC_TIME_CONTROLS.md
+# History encoder contract: docs/SASREC_H_CONTEXT_CONTRACT.md
+#
+# Training block: the frozen research specification still-gowalla-core-v1-20260909
+# (#37, closed 2026-09-09); consumed by the shared trainer and diagnosed in every
+# run record. Identical to sasrec_h.yaml by contract (asserted by
+# tests/models/baselines/test_sasrec_time_controls.py). Formal Table 1 cells
+# additionally need the registered #38 24h selection manifest bound to the run.
+embedding_dim: 128
+# Point-wise feed-forward inner width. The attention/context width is
+# embedding_dim, which keeps the tied output projection-free.
+hidden_dim: 128
+num_layers: 2
+num_heads: 2
+dropout: 0.2
+# Must be at least the evaluation max_sequence_length: positions are indexed by
+# recency distance, and a longer collated history is refused rather than clamped.
+max_sequence_length: 100
+# Hidden width of the conditioning module. Identical across the arms: it is the
+# capacity being matched, so changing it in one arm invalidates the comparison.
+time_hidden_dim: 64
+training:
+  # Shared Issue #13 weight tensor; primary contract is per_gap, the
+  # per_landmark setting is the registered sensitivity axis outside the core.
+  landmark_weighting: per_gap
+  optimizer: adam
+  learning_rate: 0.001
+  weight_decay: 0.0
+  betas: [0.9, 0.999]
+  eps: 1.0e-8
+  amsgrad: false
+  scheduler: null
+  gradient_clipping: null
+  amp: false
+  tf32: false
+  gradient_accumulation: 1
+  drop_last: false
+  batch_size: 256
+  max_epochs: 20
+  early_stopping_patience: 5
+  min_delta: 0.0
+  # Table 1 selection: validation NDCG@10, max, on the complete natural 24h
+  # validation risk set (no batch prefix).
+  early_stopping_metric: ndcg@10
+  early_stopping_mode: max
+  selection_horizon_sec: 86400
+  validation_max_batches: null
+  # 128 uniform known-catalog negatives per eligible row (shared builder).
+  # Evaluation always scores the full catalog exactly through the shared evaluator.
+  negative_samples: 128
+  device: auto
+formal_recipe:
+  specification_id: still-foursquare-core-v1-20260910
+  table: table1
+  training_profile: observed-known-v0-proposed
+  weighting_contract: still-landmark-weighting-v0.1
+  selection:
+    metric: ndcg@10
+    direction: max
+    horizon_sec: 86400

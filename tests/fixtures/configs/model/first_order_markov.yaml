@@ -1,0 +1,13 @@
+name: first_order_markov
+family: baseline
+implementation: adrec_still.models.baselines.markov.FirstOrderMarkov
+# Committed smoothing policy: interpolation with the GlobalPop fallback,
+#   p = transition_weight * P(next | last) + (1 - transition_weight) * GlobalPop.
+# Transitions are fitted from training gaps only, one transition per completed
+# gap (the query_s_sec = 0 landmark), never once per eligible horizon.
+transition_weight: 0.9
+# Committed fallback policy: rows with an unknown last POI or an unseen
+# transition state use the pure GlobalPop distribution. Both the fallback rate
+# and the transition-support rate are reported per split.
+count_source: train_targets
+smoothing: 1.0

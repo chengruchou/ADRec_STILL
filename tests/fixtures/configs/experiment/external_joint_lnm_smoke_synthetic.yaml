@@ -1,0 +1,15 @@
+name: external_joint_lnm_smoke_synthetic
+description: >-
+  Bounded end-to-end smoke for the #51 external dependent LNM baseline on the
+  synthetic canonical fixture: CLI -> config -> registry -> shared trainer ->
+  interim selection -> checkpoint -> external-registry reload -> shared
+  evaluation -> machine-readable summary. Fixture evidence only; never a real
+  result and never the paper's benchmark.
+synthetic_fixture: true
+model_config: configs/model/external_joint_lnm.yaml
+seeds: [41]
+evaluation:
+  splits: [validation]
+  batch_size: 16
+  max_sequence_length: 10
+output_dir: results/raw/external/joint_lnm_smoke_synthetic

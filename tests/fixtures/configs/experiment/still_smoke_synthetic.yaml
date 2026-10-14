@@ -1,0 +1,14 @@
+name: still_smoke_synthetic
+description: >-
+  Bounded end-to-end smoke for the #41 arms on the synthetic fixture benchmark:
+  CLI -> config -> model factory -> shared trainer -> validation selection ->
+  checkpoint reload -> shared evaluation -> machine-readable summary. Fixture
+  evidence only; never a real result.
+synthetic_fixture: true
+model_config: configs/model/still_joint.yaml
+seeds: [41]
+evaluation:
+  splits: [validation]
+  batch_size: 32
+  max_sequence_length: 10
+output_dir: results/raw/still/smoke_synthetic

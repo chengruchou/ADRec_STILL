@@ -1,0 +1,67 @@
+name: gru4rec_h
+family: baseline
+implementation: adrec_still.models.baselines.gru4rec.GRU4RecH
+# History-only recurrent baseline (B1): the model reads history_poi/history_mask
+# only. query_s_sec is never consumed, so predictions are identical for every
+# landmark of the same gap by construction. Output scores are tied to the item
+# embedding table; SASRec-H must reuse the same embedding and candidate policy.
+#
+# Training block: the frozen research specification still-gowalla-core-v1-20260909
+# (#37, closed 2026-09-09). Every value below is consumed by the shared trainer
+# (still-baseline-trainer-v0.1) and the requested-versus-executed diagnosis is
+# recorded in every run record; the earlier 200-epoch / patience-20 / first-50-
+# validation-batches starter values are superseded. The specification being frozen
+# is not runtime acceptance: formal Table 1 cells additionally need the registered
+# #38 24h selection manifest bound to the run (see docs/CORE_RECIPE_V1.md).
+embedding_dim: 128
+hidden_dim: 128
+num_layers: 2
+dropout: 0.2
+training:
+  # Shared Issue #13 weight tensor; primary contract is per_gap, the
+  # per_landmark setting is the registered sensitivity axis outside the core.
+  landmark_weighting: per_gap
+  optimizer: adam
+  learning_rate: 0.001
+  weight_decay: 0.0
+  betas: [0.9, 0.999]
+  eps: 1.0e-8
+  amsgrad: false
+  # No scheduler, gradient clipping, AMP or accumulation: the trainer refuses any
+  # other value rather than ignoring the request.
+  scheduler: null
+  gradient_clipping: null
+  amp: false
+  tf32: false
+  gradient_accumulation: 1
+  drop_last: false
+  batch_size: 256
+  # Twenty complete epochs is the ceiling of the fixed-budget first comparison,
+  # not a convergence claim; early stopping after five completed validations
+  # without strict improvement (min_delta 0, ties keep the earlier checkpoint).
+  max_epochs: 20
+  early_stopping_patience: 5
+  min_delta: 0.0
+  # Table 1 selection: validation NDCG@10, max, on the complete natural 24h
+  # validation risk set (no batch prefix). The trainer scores that horizon's rows
+  # through the model's registered #38 scorer surface under the exact adapter --
+  # the same scores the registered export reports -- never the pooled v0.2
+  # evaluator summary.
+  early_stopping_metric: ndcg@10
+  early_stopping_mode: max
+  selection_horizon_sec: 86400
+  validation_max_batches: null
+  # 128 uniform known-catalog negatives per eligible row, with replacement, positive
+  # first, accidental hits masked (shared builder). Evaluation always scores the
+  # full catalog exactly through the shared evaluator.
+  negative_samples: 128
+  device: auto
+formal_recipe:
+  specification_id: still-gowalla-core-v1-20260909
+  table: table1
+  training_profile: observed-known-v0-proposed
+  weighting_contract: still-landmark-weighting-v0.1
+  selection:
+    metric: ndcg@10
+    direction: max
+    horizon_sec: 86400

@@ -1,0 +1,45 @@
+name: gowalla_external_joint_lnm
+description: >-
+  External dependent LNM baseline (#51) on the Gowalla v0.1 protocol under the
+  candidate recipe external-joint-lnm-still-v1-proposed-20260909 (lead proposal on
+  #51; outside the seven still-gowalla-core-v1-20260909 core recipes and never
+  counted in their completion tally). Formal execution is refused with concrete
+  reasons until the lead records the candidate as accepted on #51
+  (recipe_status: accepted), the #38 24h selection manifest is registered and bound
+  here, the data identities are verified and this file declares frozen: true. The
+  #39 pieces this arm needs -- the still-train-admin-censor-v1 training view, the
+  visible-view statistics population and the joint-NLL scorer -- are implemented
+  and are what the model config below executes; being able to execute them is a
+  code capability and is not any of those acceptances. No independent capacity pilot is
+  required (#37 2026-09-09): the literal-head estimate is recorded before any
+  allocation as provisional/unmeasured, and an actual allocation failure is
+  recorded as a failed attempt rather than avoided by shrinking anything.
+specification_id: still-gowalla-core-v1-20260909
+specification_status: frozen
+# Execution-contract acceptance (runtime); never sufficient on its own.
+frozen: false
+dataset_config: configs/dataset/gowalla.yaml
+model_config: configs/model/external_joint_lnm_gowalla_v1_proposed.yaml
+manifest: data/manifests/gowalla_v0.1.json
+# Registered #38 selection manifest for this cell (table2, complete 24h
+# validation population), derived by scripts/register_gowalla_selection.py from
+# the frozen Gowalla v0.1 Parquet and independently re-derived from source (#41).
+# The metric disagreement #64 recorded here is resolved: the executed training block
+# now selects on joint_nll/min, the same policy this table2 registration carries, so
+# the registration and the executed selection no longer describe different things.
+# What the run reports is decided per run and not by this file: the binding reaches
+# `bound` only when a fresh register_selection derivation from the machine's own
+# canonical artifacts reproduces this manifest exactly. Without those artifacts the
+# derivation cannot run and the cell reports `mismatched` with that concrete reason
+# (a missing frozen catalog), which is the honest report rather than a claim of
+# agreement. Formal mode still refuses: the recipe is proposed and frozen is false.
+# Seed 41 first; 42/43 complete the final target (#51 candidate, #37 seed policy).
+seeds: [41, 42, 43]
+# Formal device (#37 §5): one RTX 3090, explicit cuda:0; smoke may override.
+device: cuda:0
+evaluation:
+  splits: [validation, test]
+  batch_size: 128
+  max_sequence_length: 100
+  num_workers: 0
+output_dir: results/raw/external/gowalla_joint_lnm

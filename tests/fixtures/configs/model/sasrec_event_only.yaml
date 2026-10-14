@@ -1,0 +1,47 @@
+# Same SASRec-H architecture; one eligible s=0 row and unit weight per training gap.
+# Selection remains complete 24h validation; this is a separate training-view control.
+name: sasrec_event_only
+family: baseline
+implementation: adrec_still.models.baselines.sasrec_event_only.SASRecEventOnly
+embedding_dim: 128
+hidden_dim: 128
+num_layers: 2
+num_heads: 2
+dropout: 0.2
+max_sequence_length: 100
+training:
+  landmark_weighting: per_gap
+  optimizer: adam
+  learning_rate: 0.001
+  weight_decay: 0.0
+  betas:
+  - 0.9
+  - 0.999
+  eps: 1.0e-08
+  amsgrad: false
+  scheduler: null
+  gradient_clipping: null
+  amp: false
+  tf32: false
+  gradient_accumulation: 1
+  drop_last: false
+  batch_size: 256
+  max_epochs: 20
+  early_stopping_patience: 5
+  min_delta: 0.0
+  early_stopping_metric: ndcg@10
+  early_stopping_mode: max
+  selection_horizon_sec: 86400
+  validation_max_batches: null
+  negative_samples: 128
+  device: auto
+  training_profile: still-event-only-observed-known-v1
+formal_recipe:
+  specification_id: still-gowalla-event-only-v1-20260915
+  table: table1
+  training_profile: still-event-only-observed-known-v1
+  weighting_contract: still-event-gap-weighting-v1
+  selection:
+    metric: ndcg@10
+    direction: max
+    horizon_sec: 86400

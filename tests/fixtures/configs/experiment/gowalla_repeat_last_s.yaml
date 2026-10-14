@@ -1,0 +1,17 @@
+# Deterministic fit; a single seed records run identity. Original floor artifacts stay unchanged.
+name: gowalla_repeat_last_s
+description: Empirical silence-conditioned repeat_last; completed known-target training
+  gaps only.
+dataset_config: configs/dataset/gowalla.yaml
+model_config: configs/model/repeat_last_s.yaml
+manifest: data/manifests/gowalla_v0.1.json
+seeds:
+- 41
+evaluation:
+  splits:
+  - validation
+  - test
+  batch_size: 128
+  max_sequence_length: 100
+  num_workers: 0
+output_dir: runs/gowalla_repeat_last_s

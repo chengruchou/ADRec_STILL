@@ -1,0 +1,8 @@
+p1	40.7000	-74.0000	Park	US
+p2	40.7100	-74.0100	Cafe	US
+p2	40.7100	-74.0100	Cafe	US
+p3	40.7200	-74.0200
+p4	35.0000	139.0000	Station	JP
+p4	35.1000	139.1000	Station	JP
+p_badcoord	999	139.0000	Station	JP
+p_unused	25.0000	121.0000	Museum	TW

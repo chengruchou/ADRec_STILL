@@ -1,0 +1,54 @@
+# External dependent time-mark LNM baseline (#51) -- FIXTURE SMOKE configuration.
+# Source fidelity and every deviation from the paper/official implementation are
+# recorded in src/still/models/external/UPSTREAM.md. The hyperparameters below are
+# a bounded fixture configuration, NOT the paper's experimental setup (upstream
+# code constructor defaults: C=16, context 32, mark embedding 32; the published
+# experiments use C=64, history vector 64, mark embedding 32, 64 on MOOC) and NOT
+# the Gowalla candidate recipe: that one is
+# configs/model/external_joint_lnm_gowalla_v1_proposed.yaml
+# (external-joint-lnm-still-v1-proposed-20260909). The runner records every
+# difference between this executed block and the requested recipe as an explicit
+# fixture deviation; identity log-time statistics are a fixture declaration.
+name: external_joint_lnm
+family: external
+recipe_id: external-joint-lnm-fixture-smoke-v0
+recipe_status: fixture
+mark_embedding_dim: 16
+context_dim: 32
+num_layers: 1
+dropout: 0.0
+mixture_components: 2
+# identity (declared, fixture) or fit_train_unique_gaps (canonical train split,
+# one contribution per underlying user gap; the interim engineering population).
+log_time_statistics: identity
+training:
+  # Explicitly the interim engineering profile; not an accepted #39 survival view.
+  training_profile: observed-known-v0-proposed
+  landmark_weighting: per_gap
+  optimizer: adam
+  learning_rate: 0.001
+  batch_size: 32
+  max_epochs: 20
+  early_stopping_patience: 5
+  # Interim engineering selection through the shared trainer (pooled validation
+  # ranking metric); the requested 24h joint-NLL (min) selection waits on #39.
+  early_stopping_metric: "ndcg@10"
+  early_stopping_mode: max
+  negative_samples: 8
+  validation_max_batches: 2
+  device: auto
+formal_recipe:
+  # The requested recipe this fixture stands in for; every difference from the
+  # executed block above is a recorded deviation (fixture overrides are explicit).
+  specification_id: still-gowalla-core-v1-20260909
+  recipe_id: external-joint-lnm-still-v1-proposed-20260909
+  table: table2
+  core_member: false
+  training_profile: still-train-admin-censor-v1
+  weighting_contract: still-survival-gap-weighting-v1
+  statistics_population: still-train-admin-censor-v1-visible-training-view
+  selection:
+    metric: joint_nll
+    direction: min
+    horizon_sec: 86400
+    metric_source: accepted-39-joint

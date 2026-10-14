@@ -1,0 +1,36 @@
+name: gowalla_sasrec_clock
+description: >-
+  Query-clock control (#40): hour-of-day and day-of-week sin/cos only, elapsed
+  masked, on the frozen Gowalla v0.1 protocol.
+dataset_config: configs/dataset/gowalla.yaml
+model_config: configs/model/sasrec_clock.yaml
+# The arm shares gowalla_sasrec_h's manifest, seeds and evaluation block verbatim:
+# a control that changed the split, the seed set or the evaluator would not be a
+# matched control. Only model_config differs across the four SASRec experiments.
+manifest: data/manifests/gowalla_v0.1.json
+# Frozen research specification (#37, closed 2026-09-09). Not runtime acceptance:
+# a reportable Table 1 run additionally needs the registered #38 24h selection
+# manifest bound below; the trainer records the binding status in resolved_config.
+specification_id: still-gowalla-core-v1-20260909
+specification_status: frozen
+# Runtime declaration; every run still verifies recipe, data, binding and device.
+frozen: true
+device: cuda:0
+# Registered #38 selection manifest for this cell (table1, complete 24h
+# validation population), derived by scripts/register_gowalla_selection.py from
+# the frozen Gowalla v0.1 Parquet and independently re-derived from source
+# (#41). Naming it is not acceptance and does not bind it: promotion to bound needs
+# a fresh register_selection derivation against this run's own cohort index, and the
+# verified baseline consumer re-derives and compares it before model allocation.
+# Registered seed set of still-gowalla-core-v1-20260909 (#37 §2): seed 41 runs
+# first in the core order, then 42 and 43 under the same recipe as resources
+# permit. The campaign dispatches one seed per invocation (--seeds).
+seeds: [41, 42, 43]
+evaluation:
+  splits: [validation, test]
+  # Registered selection and final exact exports stream complete catalog chunks.
+  batch_size: 128
+  chunk_size: 4096
+  max_sequence_length: 100
+  num_workers: 0
+output_dir: results/baselines/gowalla_sasrec_clock

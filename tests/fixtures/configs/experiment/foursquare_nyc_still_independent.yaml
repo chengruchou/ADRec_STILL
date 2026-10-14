@@ -1,0 +1,26 @@
+name: foursquare_nyc_still_independent
+description: >-
+  Independent time/POI control arm (#41) on the Foursquare NYC v0.1 protocol (#69).
+dataset_config: configs/dataset/foursquare_nyc.yaml
+model_config: configs/model/foursquare/still_independent.yaml
+manifest: data/manifests/foursquare_nyc_v0.1.json
+# Proposed specification (#69): Gowalla's training, evaluation and selection values
+# under a separate Foursquare ID. The formal gate refuses a proposed specification,
+# so no run of this config is formal until the lead records the decision.
+specification_id: still-foursquare-core-v1-20260910
+specification_status: proposed
+# Execution contract not accepted: frozen is declared only after the bounded fixture
+# evidence (#69 PR 3), and never suffices on its own.
+frozen: false
+device: cuda:0
+# Registered #38 selection manifest for this cell (table2, complete 24h validation
+# population), derived by scripts/register_selection.py from the frozen Foursquare
+# NYC v0.1 Parquet. Naming it does not bind it: every run re-derives it from its
+# own artifacts before allocating a model.
+seeds: [41, 42, 43]
+evaluation:
+  splits: [validation, test]
+  batch_size: 128
+  max_sequence_length: 100
+  num_workers: 0
+output_dir: results/raw/still/foursquare_nyc_still_independent
