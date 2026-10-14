@@ -414,10 +414,11 @@ def _mark_monte_carlo(result: dict[str, Any], model) -> dict[str, Any]:
     if not callable(getattr(model, "prepare_forecast", None)):
         return result
     def rename(block: dict[str, Any]) -> None:
-        if "poi_nll" in block:
-            block["poi_nll_mc"] = block.pop("poi_nll")
-        if "poi_nll_rows" in block:
-            block["poi_nll_mc_rows"] = block.pop("poi_nll_rows")
+        for name in ("poi_nll", "joint_nll"):
+            if name in block:
+                block[f"{name}_mc"] = block.pop(name)
+            if f"{name}_rows" in block:
+                block[f"{name}_mc_rows"] = block.pop(f"{name}_rows")
     rename(result)
     for block in (result.get("by_horizon") or {}).values():
         rename(block)
@@ -441,7 +442,7 @@ def _evaluate(model, data: DataSource, split: str, evaluation: EvaluationOptions
         ), model)
     headline = {key: result.get(key) for key in ("rows", "eligible_rows", "ndcg@10",
                                                     "recall@10", "poi_nll", "poi_nll_mc",
-                                                    "joint_nll", "time_nll")
+                                                    "joint_nll", "joint_nll_mc", "time_nll")
                 if result.get(key) is not None}
     reporter.message(f"[{split}] " + " ".join(f"{k} {v:.6g}" if isinstance(v, float) else f"{k} {v}"
                                               for k, v in headline.items()))

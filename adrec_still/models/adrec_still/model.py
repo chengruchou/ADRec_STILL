@@ -625,6 +625,103 @@ class AdrecStillModel(BaselineModel, nn.Module):
     def loss_components(self) -> dict[str, Any]:
         return dict(getattr(self, "_last_loss_components", {}))
 
+    # ------------------------------------------------------------ joint scoring
+
+    def score_joint(self, batch: dict[str, Any]) -> dict[str, torch.Tensor]:
+        """Per-row MC joint log score on observed exact-known rows (scoring only).
+
+        The observed residual time and target enter here as *evaluation* targets,
+        never a forecast input. Everything uses the catalog view consistently —
+        ``log q_s(r, y) = log sum_b pi_cat_b f_b(s + r) q_b(y | T) - log S_cat(s)``
+        — so numerator and denominator share one projection; the all-event (raw
+        view) time NLL is reported separately through the prediction's residual
+        distribution. The mark term averages ``diffusion_samples`` latent
+        probabilities per branch (an MC estimate; consumers label it ``_mc``).
+        Only the lognormal variants implement this surface.
+        """
+        if self.time_model != "lognormal":
+            raise TypeError(f"{self.name} has no joint time/mark law to score")
+        was_training = self.training
+        self.eval()
+        try:
+            with torch.no_grad():
+                return self._score_joint_eval(batch)
+        finally:
+            self.train(was_training)
+
+    def _score_joint_eval(self, batch: dict[str, Any]) -> dict[str, torch.Tensor]:
+        memory = memory_features(self.require_memory(), batch,
+                                 home_policy=self.home_policy_eval)
+        eligible = (
+            batch["observed_mask"].to(self.device).bool()
+            & batch["target_in_train_catalog"].to(self.device).bool()
+        )
+        rows = int(batch["next_poi"].shape[0])
+        encoded, _mask = self.encode_history(batch)
+        context = self.base_context(batch, encoded=encoded)
+        log_prior_raw = self.branch_log_prior(context).to(torch.float64)
+        support = self.catalog_support_log_mask(memory)
+        log_prior_cat = log_prior_raw + support
+        log_prior_cat = log_prior_cat - torch.logsumexp(log_prior_cat, dim=1, keepdim=True)
+        parameters = self.branch_time_parameters(context)
+        elapsed = batch["query_s_sec"].to(self.device, torch.float64)
+        residual = batch["residual_time_sec"].to(self.device, torch.float64)
+        safe_residual = torch.where(eligible, residual, torch.ones_like(residual))
+        total = elapsed + safe_residual
+        log_density = torch.stack([p.log_density(total) for p in parameters], dim=1)
+        log_survival_s = torch.stack([p.log_survival(elapsed) for p in parameters], dim=1)
+        log_s_cat = torch.logsumexp(log_prior_cat + log_survival_s, dim=1)
+        components = log_prior_cat + log_density  # [B, 2]
+        log_time = torch.logsumexp(components, dim=1) - log_s_cat
+        log_gamma = components - torch.logsumexp(components, dim=1, keepdim=True)
+
+        # Teacher-conditioned mark probability per branch, averaged over latents
+        # in probability space; one full-catalog normalizer pass per sample.
+        generator = self._forecast_generator(batch)
+        anchor = batch["last_timestamp"].to(self.device, torch.float64)
+        reference_time = anchor + total
+        targets = batch["next_poi"].to(self.device).clamp_min(2)
+        from adrec_still.evaluation.ranking import full_catalog_candidate_ids
+
+        candidates = full_catalog_candidate_ids(self.number_of_pois).to(self.device)
+        chunk = 16384
+        log_mark_per_branch = torch.full((rows, 2), -math.inf, dtype=torch.float64,
+                                         device=self.device)
+        for branch in (BRANCH_REPEAT, BRANCH_EXPLORE):
+            branch_tensor = torch.full((rows,), branch, dtype=torch.long,
+                                       device=self.device)
+            probability = torch.zeros(rows, dtype=torch.float64, device=self.device)
+            for _ in range(max(1, self.diffusion_samples)):
+                generated = self._generate_inference(
+                    encoded, batch, branch_tensor, total, generator
+                )
+                normalizer = torch.full((rows,), -math.inf, dtype=torch.float64,
+                                        device=self.device)
+                for start in range(0, len(candidates), chunk):
+                    ids = candidates[start:start + chunk].expand(rows, -1)
+                    scores = self.branch_candidate_scores(
+                        generated, ids, memory, branch, reference_time
+                    ).to(torch.float64)
+                    normalizer = torch.logaddexp(
+                        normalizer, torch.logsumexp(scores, dim=1)
+                    )
+                target_scores = self.branch_candidate_scores(
+                    generated, targets.unsqueeze(1), memory, branch, reference_time
+                ).to(torch.float64).squeeze(1)
+                probability = probability + (target_scores - normalizer).exp()
+            probability = probability / max(1, self.diffusion_samples)
+            log_mark_per_branch[:, branch] = probability.clamp_min(
+                torch.finfo(torch.float64).tiny
+            ).log()
+        log_mark_given_time = torch.logsumexp(log_gamma + log_mark_per_branch, dim=1)
+        log_joint = log_time + log_mark_given_time
+        return {
+            "eligible": eligible.cpu(),
+            "log_joint": log_joint.cpu(),
+            "log_time": log_time.cpu(),
+            "log_mark_given_time": log_mark_given_time.cpu(),
+        }
+
     # ---------------------------------------------------------------- forecast
 
     def _forecast_generator(self, batch: dict[str, Any]) -> torch.Generator:
