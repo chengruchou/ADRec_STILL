@@ -4,15 +4,15 @@ import pytest
 import torch
 
 from adrec_still.models.still.coherent import StillCoherentJoint
-from adrec_still.time.distributions import (
-    LognormalMixtureParameters,
-    SurvivalConditionedResidualDistribution,
-)
 from adrec_still.models.still.independent import StillIndependent
 from adrec_still.models.still.losses import (
     SURVIVAL_TRAINING_PROFILE,
     censored_exposure_nll,
     observed_time_nll,
+)
+from adrec_still.time.distributions import (
+    LognormalMixtureParameters,
+    SurvivalConditionedResidualDistribution,
 )
 
 

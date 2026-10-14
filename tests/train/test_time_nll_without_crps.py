@@ -48,7 +48,7 @@ def _all_subclasses(cls):
 def crps_forbidden(monkeypatch):
     """CRPS no longer exists anywhere on the time path, and the metric-adapter
     module surface raises if the training/evaluation path were to call it."""
-    import adrec_still.models.external.lnm_distributions  # noqa: F401
+    import adrec_still.models.external.lnm_distributions
     import adrec_still.time.distributions  # noqa: F401
 
     assert not hasattr(time_module.ResidualTimeDistribution, "crps")
@@ -63,8 +63,8 @@ def crps_forbidden(monkeypatch):
 
 
 def test_the_guard_itself_bites(crps_forbidden):
-    from adrec_still.time.distributions import LognormalMixtureParameters
     from adrec_still.models.still.independent import MixtureResidualDistribution
+    from adrec_still.time.distributions import LognormalMixtureParameters
 
     parameters = LognormalMixtureParameters(
         log_weights=torch.full((1, 2), math.log(0.5)), mu=torch.zeros(1, 2),

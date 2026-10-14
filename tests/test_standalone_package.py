@@ -1,4 +1,4 @@
-"""The installed package works from any directory, without the donor repository."""
+﻿"""The installed package works from any directory, without the donor repository."""
 
 from __future__ import annotations
 
@@ -31,6 +31,7 @@ def test_package_imports_from_a_foreign_cwd_without_the_donor_repo(tmp_path):
     completed = subprocess.run(
         [sys.executable, "-c", PROBE],
         cwd=tmp_path,
+        check=False,
         capture_output=True,
         text=True,
         timeout=180,
@@ -47,6 +48,7 @@ def test_cli_help_runs_from_a_foreign_cwd(tmp_path):
     completed = subprocess.run(
         [sys.executable, "-m", "adrec_still", "--help"],
         cwd=tmp_path,
+        check=False,
         capture_output=True,
         text=True,
         timeout=180,

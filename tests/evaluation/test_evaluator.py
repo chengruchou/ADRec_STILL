@@ -3,7 +3,11 @@ from pathlib import Path
 
 import torch
 
-from adrec_still.evaluation.evaluator import EVALUATION_SCHEMA_VERSION, evaluate, write_evaluation_json
+from adrec_still.evaluation.evaluator import (
+    EVALUATION_SCHEMA_VERSION,
+    evaluate,
+    write_evaluation_json,
+)
 from adrec_still.time.protocol import LogNormalPrediction
 
 

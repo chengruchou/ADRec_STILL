@@ -10,14 +10,14 @@ import pytest
 import torch
 
 from adrec_still.evaluation.evaluator import evaluate
+from adrec_still.models.baselines.harness import _aggregate_time
+from adrec_still.models.baselines.trainer import validate_training_config
 from adrec_still.time.protocol import (
     LogNormalPrediction,
     ResidualTimeDistribution,
     lognormal_time_metrics,
     residual_time_distribution_metrics,
 )
-from adrec_still.models.baselines.harness import _aggregate_time
-from adrec_still.models.baselines.trainer import validate_training_config
 
 
 class EqualWeightLognormalMixture(ResidualTimeDistribution):

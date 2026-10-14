@@ -9,7 +9,10 @@ import torch
 from adrec_still.data.collate import collate_canonical_samples
 from adrec_still.data.dataset import LandmarkDataset
 from adrec_still.data.schema import CanonicalSample
-from adrec_still.data.training_views import EVENT_ONLY_TRAINING_PROFILE, EVENT_ONLY_WEIGHTING_CONTRACT
+from adrec_still.data.training_views import (
+    EVENT_ONLY_TRAINING_PROFILE,
+    EVENT_ONLY_WEIGHTING_CONTRACT,
+)
 from adrec_still.models.baselines import trainer
 from adrec_still.models.baselines.sasrec import SASRecH
 from adrec_still.models.baselines.sasrec_event_only import SASRecEventOnly
