@@ -160,7 +160,7 @@ class FullHistoryIndex:
         prefix_poi = self._user_poi[user][: position + 1]
         prefix_time = self._user_time[user][: position + 1]
         unique, counts = np.unique(prefix_poi, return_counts=True)
-        reversed_unique, reversed_first = np.unique(prefix_poi[::-1], return_index=True)
+        _reversed_unique, reversed_first = np.unique(prefix_poi[::-1], return_index=True)
         last_index = (len(prefix_poi) - 1) - reversed_first
         known = unique >= 2
         return SeenState(

@@ -63,10 +63,8 @@ from adrec_still.models.still.conditioning import clock_features
 from adrec_still.models.still.heads import FeatureFusion, LognormalMixtureHead
 from adrec_still.models.upstream.adrec import AdRec, AdRecConfig
 from adrec_still.models.upstream.transformer import LayerNorm
-from adrec_still.models.upstream.wrappers import chunked_cross_entropy
 from adrec_still.time.distributions import (
     LognormalMixtureParameters,
-    SurvivalConditionedResidualDistribution,
 )
 
 ADREC_STILL_FAMILY = "adrec_still"
@@ -230,6 +228,7 @@ class AdrecStillModel(BaselineModel, nn.Module):
             "family": self.family,
             "interface_version": self.interface_version,
             "number_of_pois": self.number_of_pois,
+            "hidden_size": self.hidden_size,
             "embedding_dim": self.hidden_size,
             "hidden_dim": self.hidden_size,
             "dropout": self.dropout_rate,

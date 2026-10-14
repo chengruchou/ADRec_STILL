@@ -22,7 +22,6 @@ from typing import Any
 import torch
 from torch import nn
 
-from adrec_still.time.protocol import LogNormalPrediction
 from adrec_still.models.baselines.base import (
     BaselineModel,
     BaselinePrediction,
@@ -31,12 +30,13 @@ from adrec_still.models.baselines.base import (
 )
 from adrec_still.models.baselines.gru4rec import GRU4RecH
 from adrec_still.models.still.conditioning import QUERY_FEATURE_DIM, query_features
+from adrec_still.models.still.heads import FeatureFusion, LognormalMixtureHead
+from adrec_still.models.still.losses import observed_known_joint_losses, survival_training_masks
 from adrec_still.time.distributions import (
     LognormalMixtureParameters,
     MixtureResidualDistribution,
 )
-from adrec_still.models.still.heads import FeatureFusion, LognormalMixtureHead
-from adrec_still.models.still.losses import observed_known_joint_losses, survival_training_masks
+from adrec_still.time.protocol import LogNormalPrediction
 
 
 class StillIndependent(BaselineModel, nn.Module):

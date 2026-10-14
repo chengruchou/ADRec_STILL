@@ -40,11 +40,11 @@ from dataclasses import dataclass
 
 import torch
 
+from adrec_still.time.distributions import LognormalMixtureParameters
 from adrec_still.time.protocol import (
     ResidualTimeDistribution,
     lognormal_component_tail_mass_log,
 )
-from adrec_still.time.distributions import LognormalMixtureParameters
 
 #: Official straight-through clamp bounds for normalized-space log-scales
 #: (joint_tpp code/dpp/models/log_norm_mix.py: clamp_preserve_gradients(x, -5.0, 3.0)).

@@ -19,13 +19,14 @@ SMALL = ["--set", "embedding_dim=8", "--set", "hidden_dim=8",
 
 
 def test_models_lists_every_registered_backend(capsys):
-    """The 18 donor backends plus the four upstream ADRec-fork models."""
+    """18 donor backends + 4 upstream fork models + 5 adrec_still variants."""
     assert main(["models"]) == 0
     lines = [line.split() for line in capsys.readouterr().out.strip().splitlines()]
-    assert len(lines) == 22
+    assert len(lines) == 27
     assert sum(1 for line in lines if line[2] == "floor") == 8
-    assert sum(1 for line in lines if line[2] == "neural") == 14
+    assert sum(1 for line in lines if line[2] == "neural") == 19
     assert sum(1 for line in lines if line[1] == "upstream") == 4
+    assert sum(1 for line in lines if line[1] == "adrec_still") == 5
 
 
 def test_train_from_a_raw_file_in_a_subprocess_with_real_progress(raw_gowalla_file, tmp_path):

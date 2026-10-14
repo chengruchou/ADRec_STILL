@@ -54,6 +54,7 @@ class RunSpec:
     cache_dir: Path | None = None
     workers: int | None = None
     row_limit: int | None = None
+    horizons_hours: tuple[int, ...] | None = None
     seed: int = 41
     device: str | None = None
     epochs: int | None = None
@@ -342,9 +343,13 @@ def run(spec: RunSpec) -> dict[str, Any]:
 
             data = PklDataSource(Path(data_path))
         else:
+            resolve_keywords: dict[str, Any] = {}
+            if spec.horizons_hours:
+                resolve_keywords["horizons_hours"] = tuple(spec.horizons_hours)
             data = resolve_data(
                 data_path, adapter=spec.adapter, poi_file=spec.poi_file, cache_dir=cache_dir,
                 workers=spec.workers, row_limit=spec.row_limit, reporter=reporter,
+                **resolve_keywords,
             )
         evaluation = resolve_evaluation(spec, source, data)
         device = resolve_device(spec.device or (config.get("training") or {}).get("device"))

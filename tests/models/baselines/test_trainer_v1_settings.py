@@ -488,7 +488,11 @@ def test_fixture_smoke_selects_on_the_real_24h_rows_via_the_exact_adapter(tmp_pa
     )
     rows = batch["query_s_sec"].eq(86400)
     sub_batch = select_batch_rows(batch, rows)
-    features = {key: sub_batch[key].clone() for key in INFERENCE_FIELDS}
+    features = {
+        key: (value.clone() if isinstance(value := sub_batch[key], torch.Tensor)
+              else list(value))
+        for key in INFERENCE_FIELDS if key in sub_batch
+    }
     contributions = exact_ranking_contributions(
         encoder_candidate_factory(model)(features),
         sub_batch["next_poi"],

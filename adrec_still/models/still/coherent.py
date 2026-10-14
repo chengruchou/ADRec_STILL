@@ -44,13 +44,13 @@ from adrec_still.models.baselines.base import (
 )
 from adrec_still.models.baselines.gru4rec import GRU4RecH
 from adrec_still.models.still.conditioning import ANCHOR_FEATURE_DIM, anchor_features
+from adrec_still.models.still.heads import FeatureFusion, LognormalMixtureHead
+from adrec_still.models.still.losses import TRAINING_PROFILE, survival_training_masks
 from adrec_still.time.distributions import (
     FixedPiTruncatedResidualDistribution,
     LognormalMixtureParameters,
     SurvivalConditionedResidualDistribution,
 )
-from adrec_still.models.still.heads import FeatureFusion, LognormalMixtureHead
-from adrec_still.models.still.losses import TRAINING_PROFILE, survival_training_masks
 
 VARIANT_SURVIVOR_REWEIGHTED = "survivor_reweighted"
 VARIANT_FIXED_PI_TRUNCATED = "fixed_pi_truncated"

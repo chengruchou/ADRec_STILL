@@ -1,4 +1,4 @@
-"""Stage-aware training for the upstream family (and the ADRec-STILL extension).
+﻿"""Stage-aware training for the upstream family (and the ADRec-STILL extension).
 
 ADRec's recipe is three stages: **pretrain** (a position-free SASRec trains the
 item-embedding table), **warmup** (the diffusion model trains around the frozen
@@ -13,7 +13,7 @@ or warmup metric can never masquerade as the finetune best. Earlier stages'
 bests are kept in the summary as ``stage_history``. ``last.pt`` carries the
 stage, epoch, optimizer, scheduler and RNG needed to resume mid-run, including
 mid-pretrain (the pretrain network's state rides along only while that stage is
-active). A pretrained embedding is handed over in memory — no ``pretrain.pth``
+active). A pretrained embedding is handed over in memory ??no ``pretrain.pth``
 file is required for a new dataset.
 
 Deviation from the fork recorded in MIGRATION.md: each stage builds its
@@ -25,6 +25,7 @@ zero gradient on frozen parameters and Adam's weight decay still shrank them).
 from __future__ import annotations
 
 import json
+import math
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -155,7 +156,7 @@ def _epoch_pass(network, loader, optimizer, device, max_train_batches, reporter,
         raise ValueError("a training epoch processed no batches")
     ce = ce_total / weight_total
     mse = mse_total / weight_total
-    if not (ce == ce and mse == mse):  # NaN check without importing math
+    if math.isnan(ce) or math.isnan(mse) or math.isinf(ce) or math.isinf(mse):
         raise ValueError(f"non-finite stage {stage} epoch loss (ce={ce}, mse={mse})")
     return {"ce": ce, "mse": mse, "batches": batches}
 
@@ -470,7 +471,7 @@ def load_upstream_pretrain_pth(path: str | Path, number_of_pois: int,
     pkl vocabulary shifts items by ``id_shift`` (PAD=0, UNK=1 reserved), so row
     ``i`` maps to row ``i + id_shift``; the reserved rows keep fresh
     initialization. A table whose size disagrees with the target vocabulary is a
-    different item universe and is refused — weights are never silently matched
+    different item universe and is refused ??weights are never silently matched
     by shape across datasets.
     """
     saved = torch.load(Path(path), map_location="cpu", weights_only=True)

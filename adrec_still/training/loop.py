@@ -35,7 +35,6 @@ from adrec_still.models.baselines.trainer import (
     training_step,
     validate_event_only_profile,
 )
-from adrec_still.models.still.losses import SURVIVAL_TRAINING_PROFILE
 from adrec_still.training import checkpoint as ckpt
 from adrec_still.training.evaluate import (
     MONITOR_DIRECTIONS,

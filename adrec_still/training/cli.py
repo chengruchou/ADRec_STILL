@@ -34,6 +34,15 @@ def _horizon(text: str) -> int | str:
     return value
 
 
+def _hours_list(text: str) -> tuple[int, ...]:
+    values = tuple(int(part) for part in text.split(",") if part.strip())
+    if not values or any(value < 0 for value in values) or len(set(values)) != len(values):
+        raise argparse.ArgumentTypeError(
+            "horizons are unique non-negative integer hours, e.g. 0,6,12,24,48,72,168"
+        )
+    return values
+
+
 def add_run_arguments(parser: argparse.ArgumentParser, *, batch: bool = False) -> None:
     data = parser.add_argument_group("data")
     data.add_argument("--data", type=Path, required=batch,
@@ -47,6 +56,9 @@ def add_run_arguments(parser: argparse.ArgumentParser, *, batch: bool = False) -
                            "(default: <output>/cache)")
     data.add_argument("--workers", type=int, help="preprocessing worker processes")
     data.add_argument("--row-limit", type=int, help="preprocess only the first N raw rows")
+    data.add_argument("--horizons-hours", type=_hours_list, metavar="H,H,...",
+                      help="query landmark grid in hours for raw-file preprocessing "
+                           "(default 0,6,12,24,48,72,168); any non-negative values")
 
     model = parser.add_argument_group("model")
     if batch:
@@ -117,6 +129,7 @@ def spec_from_args(args: argparse.Namespace, *, model: str | None, seed: int, ou
         config=getattr(args, "config", None), model_config=args.model_config,
         overrides=dict(args.overrides), adapter=args.adapter, poi_file=args.poi_file,
         cache_dir=args.cache_dir, workers=args.workers, row_limit=args.row_limit,
+        horizons_hours=getattr(args, "horizons_hours", None),
         seed=seed, device=args.device, epochs=args.epochs, batch_size=args.batch_size,
         learning_rate=args.learning_rate, patience=args.patience, monitor=args.monitor,
         validation_horizon=args.validation_horizon,
@@ -155,7 +168,89 @@ def build_parser() -> argparse.ArgumentParser:
 
     models = commands.add_parser("models", help="list the implemented backends")
     models.set_defaults(func=_list_models)
+
+    evaluate = commands.add_parser(
+        "evaluate", help="evaluate a saved best.pt on a dataset",
+        description="Evaluate a checkpoint: exact full-catalog ranking plus, when "
+                    "events.parquet is present, repeat/time/silence-cell metrics. "
+                    "Example: python -m adrec_still evaluate --data data/processed/nyc "
+                    "--checkpoint runs/nyc/best.pt --horizons-hours 0,6,12,24,48,72,168",
+    )
+    evaluate.add_argument("--data", type=Path, required=True,
+                          help="canonical directory or raw check-in file")
+    evaluate.add_argument("--checkpoint", type=Path, required=True, help="a best.pt")
+    evaluate.add_argument("--adapter",
+                          choices=("gowalla", "foursquare_subset", "foursquare_global"))
+    evaluate.add_argument("--poi-file", type=Path)
+    evaluate.add_argument("--cache-dir", type=Path,
+                          help="cache for raw-file preprocessing (default: beside the "
+                               "checkpoint)")
+    evaluate.add_argument("--workers", type=int)
+    evaluate.add_argument("--splits", default="test",
+                          help="comma-separated splits (default: test)")
+    evaluate.add_argument("--horizons-hours", type=_hours_list, metavar="H,H,...",
+                          help="restrict the silence metrics to these query horizons")
+    evaluate.add_argument("--device", help="cpu, cuda, cuda:N or auto")
+    evaluate.add_argument("--batch-size", type=int, default=128)
+    evaluate.add_argument("--max-sequence-length", type=int, default=100)
+    evaluate.add_argument("--num-workers", type=int, default=0)
+    evaluate.add_argument("--chunk-size", type=int, default=16384)
+    evaluate.add_argument("--max-batches", type=int,
+                          help="cap evaluation at N batches (smoke runs)")
+    evaluate.add_argument("--cell-radius-km", type=float, default=10.0,
+                          help="local/displaced threshold d0 (engineering default)")
+    evaluate.add_argument("--cell-time-threshold-hours", type=float, default=24.0,
+                          help="early/late threshold on the total gap T")
+    evaluate.add_argument("--time-samples", type=int,
+                          help="truncated time samples per stratum (adrec_still family)")
+    evaluate.add_argument("--diffusion-samples", type=int,
+                          help="reverse-diffusion latents per time sample")
+    evaluate.add_argument("--inference-steps", type=int,
+                          help="shortened reverse schedule (re-spaced, never clipped)")
+    evaluate.add_argument("--eval-seed", type=int, help="forecast noise seed")
+    evaluate.add_argument("--no-silence", action="store_true",
+                          help="skip the repeat/time/cell metrics")
+    evaluate.add_argument("--no-cell-baselines", action="store_true",
+                          help="skip fitting the prior/elapsed cell comparisons")
+    evaluate.add_argument("--output", type=Path, help="result JSON path")
+    evaluate.add_argument("--progress", choices=("auto", "bar", "plain", "off"),
+                          default="auto")
+    evaluate.set_defaults(func=_run_evaluate)
+
+    collect = commands.add_parser(
+        "collect", help="tabulate finished runs' summary.json files",
+        description="Example: python -m adrec_still collect --root runs --format csv",
+    )
+    collect.add_argument("--root", type=Path, action="append", required=True,
+                         help="directory searched recursively (repeatable)")
+    collect.add_argument("--split", default="test", choices=("validation", "test"))
+    collect.add_argument("--horizon", default="all",
+                         help="landmark seconds, or 'all' for the pooled row")
+    collect.add_argument("--metrics", default="ndcg@10,recall@10,mrr@10,poi_nll")
+    collect.add_argument("--format", choices=("table", "csv", "json"), default="table")
+    collect.set_defaults(func=_run_collect)
     return parser
+
+
+def _run_evaluate(args: argparse.Namespace) -> int:
+    from adrec_still.training import checkpoint as ckpt_module
+    from adrec_still.training.evaluate_cli import run_evaluate
+
+    if args.cache_dir is None:
+        args.cache_dir = Path(args.checkpoint).resolve().parent / "cache"
+    _hide_gpus_for_cpu_runs(args.device)
+    try:
+        return run_evaluate(args)
+    except (ckpt_module.CheckpointError, FileNotFoundError, ValueError, TypeError,
+            KeyError, RuntimeError) as error:
+        print(f"error: {error}", file=sys.stderr)
+        return EXIT_FAILED
+
+
+def _run_collect(args: argparse.Namespace) -> int:
+    from adrec_still.training.collect import run_collect
+
+    return run_collect(args)
 
 
 def _list_models(args: argparse.Namespace) -> int:

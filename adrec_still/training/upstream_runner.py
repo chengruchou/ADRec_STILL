@@ -22,7 +22,6 @@ from adrec_still.data.sequences import (
 )
 from adrec_still.evaluation.sequence_eval import evaluate_sequence_corpus
 from adrec_still.models.upstream.wrappers import build_upstream_model
-from adrec_still.training import checkpoint as ckpt
 from adrec_still.training.evaluate import EvaluationOptions, evaluate_split
 from adrec_still.training.inputs import DataSource
 from adrec_still.training.loop import STATUS_COMPLETED

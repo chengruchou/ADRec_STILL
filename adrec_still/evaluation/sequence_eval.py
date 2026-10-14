@@ -49,8 +49,8 @@ def evaluate_sequence_corpus(
     totals = dict.fromkeys(RANKING_KEYS, 0.0)
     rows = 0
     batches = 0
-    for history, answer_pad in loader:
-        if max_batches is not None and batches >= max_batches:
+    for batch_index, (history, answer_pad) in enumerate(loader):
+        if max_batches is not None and batch_index >= max_batches:
             break
         targets = answer_pad[:, -1].long()
         was_training = model.training
@@ -61,7 +61,7 @@ def evaluate_sequence_corpus(
         finally:
             model.train(was_training)
 
-        def score(ids: torch.Tensor) -> torch.Tensor:
+        def score(ids: torch.Tensor, context: torch.Tensor = context) -> torch.Tensor:
             with torch.no_grad():
                 return model.score_candidates(
                     context, ids.to(model.device).expand(len(context), -1)
@@ -78,7 +78,7 @@ def evaluate_sequence_corpus(
         for key in RANKING_KEYS:
             totals[key] += float(result["values"][key][eligible].sum())
         rows += count
-        batches += 1
+        batches = batch_index + 1
         if progress is not None:
             progress(rows, len(dataset))
     summary: dict[str, Any] = {
