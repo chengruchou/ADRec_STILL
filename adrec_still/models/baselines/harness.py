@@ -312,6 +312,7 @@ def build_fitted_model(
         with phase(f"fit destination survival ({name})"):
             floor = SilenceAwareFloor(
                 base_model, silence_alpha=float(model_config.get("silence_alpha", 1.0)),
+                horizon_support=str(model_config.get("horizon_support", "grid")),
                 **({"landmark_seconds": tuple(landmark_seconds)} if landmark_seconds else {}),
             )
             return floor.fit(processed_root / "landmark_samples.parquet")

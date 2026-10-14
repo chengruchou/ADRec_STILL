@@ -40,11 +40,19 @@ PROFILE_VERSION = "still-completed-gap-destination-survival-v1"
 
 @dataclass(frozen=True)
 class DestinationSurvivalProfile:
-    """Counts from one training base landmark per observed known-target gap."""
+    """Counts from one training base landmark per observed known-target gap.
+
+    ``targets``/``durations`` (the raw completed-gap pairs) are retained only in
+    ``step`` horizon-support mode, where the same estimator answers arbitrary
+    non-negative queries as an empirical step survivor; at the fitted grid the
+    step values coincide with ``survivor_counts`` by construction.
+    """
 
     survivor_counts: torch.Tensor
     gap_count: int
     landmark_seconds: tuple[int, ...] = LANDMARK_SECONDS
+    targets: torch.Tensor | None = None
+    durations: torch.Tensor | None = None
 
 
 def fit_destination_survival(
@@ -53,6 +61,7 @@ def fit_destination_survival(
     *,
     landmark_seconds: tuple[int, ...] = LANDMARK_SECONDS,
     batch_size: int = 200_000,
+    keep_durations: bool = False,
 ) -> DestinationSurvivalProfile:
     """Read training s=0 gaps only; a gap ending exactly at s does not survive.
 
@@ -70,6 +79,8 @@ def fit_destination_survival(
         raise ValueError("landmark_seconds must be distinct, ascending and start at 0")
     counts = torch.zeros((len(schedule), number_of_pois), dtype=torch.int64)
     gap_count = 0
+    kept_targets: list[torch.Tensor] = []
+    kept_durations: list[torch.Tensor] = []
     for batch in pq.ParquetFile(Path(landmark_path)).iter_batches(
         batch_size=batch_size, columns=columns
     ):
@@ -92,6 +103,9 @@ def fit_destination_survival(
         gap_count += len(targets)
         target_tensor = torch.tensor(targets, dtype=torch.long)
         duration_tensor = torch.tensor(durations, dtype=torch.int64)
+        if keep_durations:
+            kept_targets.append(target_tensor)
+            kept_durations.append(duration_tensor)
         for index, horizon in enumerate(schedule):
             surviving = target_tensor[duration_tensor > horizon]
             counts[index].scatter_add_(
@@ -99,7 +113,11 @@ def fit_destination_survival(
             )
     if not gap_count:
         raise ValueError("no observed known-target training base gaps for silence fitting")
-    return DestinationSurvivalProfile(counts, gap_count, schedule)
+    return DestinationSurvivalProfile(
+        counts, gap_count, schedule,
+        targets=torch.cat(kept_targets) if keep_durations else None,
+        durations=torch.cat(kept_durations) if keep_durations else None,
+    )
 
 
 class SilenceAwareFloor(BaselineModel):
@@ -108,16 +126,24 @@ class SilenceAwareFloor(BaselineModel):
     def __init__(
         self, base_model: BaselineModel, silence_alpha: float = 1.0,
         landmark_seconds: tuple[int, ...] = LANDMARK_SECONDS,
+        horizon_support: str = "grid",
     ) -> None:
         if f"{base_model.name}_s" not in SILENCE_FLOOR_BASES:
             raise ValueError("silence controls require one of the four original floors")
         if not math.isfinite(silence_alpha) or silence_alpha <= 0:
             raise ValueError("silence_alpha must be finite and positive")
+        if horizon_support not in ("grid", "step"):
+            raise ValueError("horizon_support must be 'grid' (reject off-grid queries) "
+                             "or 'step' (empirical step survivor at any s)")
         super().__init__(base_model.number_of_pois)
         self.name = f"{base_model.name}_s"
         self.base_model = base_model
         self.silence_alpha = float(silence_alpha)
         self.landmark_seconds = tuple(int(value) for value in landmark_seconds)
+        #: "grid" preserves the donor contract: off-grid queries are rejected,
+        #: never silently rounded. "step" answers any non-negative s with the
+        #: same estimator's empirical step survivor; grid values are identical.
+        self.horizon_support = horizon_support
         self.profile: DestinationSurvivalProfile | None = None
         self._log_survival = torch.empty(0)
         self._pooled_survivors: list[int] = []
@@ -127,7 +153,8 @@ class SilenceAwareFloor(BaselineModel):
         """Fit only empirical duration counts; retain the original fitted floor."""
         self.base_model.require_fitted()
         self.profile = fit_destination_survival(
-            training_source, self.number_of_pois, landmark_seconds=self.landmark_seconds
+            training_source, self.number_of_pois, landmark_seconds=self.landmark_seconds,
+            keep_durations=self.horizon_support == "step",
         )
         counts = self.profile.survivor_counts.to(torch.float64)
         pooled = counts.sum(dim=1) / self.profile.gap_count
@@ -152,28 +179,58 @@ class SilenceAwareFloor(BaselineModel):
         ):
             raise ValueError("query_s_sec must be a one-dimensional integer tensor")
         requested = horizons.unique().tolist()
-        if any(horizon not in self.landmark_seconds for horizon in requested):
+        off_grid = [h for h in requested if h not in self.landmark_seconds]
+        if off_grid and self.horizon_support == "grid":
             raise ValueError(
-                f"query_s_sec must use the fitted horizons {self.landmark_seconds}"
+                f"query_s_sec must use the fitted horizons {self.landmark_seconds} "
+                "(horizon_support='step' answers arbitrary non-negative queries)"
             )
+        if any(horizon < 0 for horizon in requested):
+            raise ValueError("query_s_sec must be non-negative")
         base = self.base_model.predict(batch)
         logits = base.poi_logits.clone()
         for horizon in requested:
             rows = horizons == horizon
             row_count = int(rows.sum())
-            self._rows_by_horizon[str(horizon)] += row_count
+            self._rows_by_horizon[str(horizon)] = (
+                self._rows_by_horizon.get(str(horizon), 0) + row_count
+            )
             if horizon == 0:
                 continue  # Preserve every original score exactly at s=0.
-            index = self.landmark_seconds.index(horizon)
-            if self._pooled_survivors[index] == 0:
+            log_survival, pooled_survivors = self._horizon_adjustment(int(horizon))
+            if pooled_survivors == 0:
                 self._unsupported_rows += row_count
                 continue  # No extrapolated positive tail beyond observed support.
-            logits[rows] = masked_log_probabilities(
-                logits[rows] + self._log_survival[index]
-            )
+            logits[rows] = masked_log_probabilities(logits[rows] + log_survival)
             self._adjusted_rows += row_count
         self._predicted_rows += len(horizons)
         return BaselinePrediction(poi_logits=logits, context=base.context)
+
+    def _horizon_adjustment(self, horizon: int) -> tuple[torch.Tensor, int]:
+        """(log survival-fraction vector, pooled survivor count) for one horizon.
+
+        Grid horizons read the fitted table. In ``step`` mode any other horizon
+        is answered by the same estimator on the retained completed-gap
+        durations — an empirical step survivor, never a rounded grid lookup —
+        and reproduces the table exactly at the grid points.
+        """
+        if horizon in self.landmark_seconds:
+            index = self.landmark_seconds.index(horizon)
+            return self._log_survival[index], self._pooled_survivors[index]
+        assert self.profile is not None and self.profile.durations is not None
+        surviving = self.profile.durations > horizon
+        counts = torch.zeros(self.number_of_pois, dtype=torch.float64)
+        picked = self.profile.targets[surviving]
+        counts.scatter_add_(0, picked, torch.ones_like(picked, dtype=torch.float64))
+        pooled_survivors = int(surviving.sum())
+        pooled = pooled_survivors / self.profile.gap_count
+        base_counts = self.profile.survivor_counts[0].to(torch.float64)
+        fractions = (counts + self.silence_alpha * pooled) / (
+            base_counts + self.silence_alpha
+        )
+        if pooled_survivors == 0:
+            fractions.fill_(1.0)
+        return fractions.log().to(torch.float32), pooled_survivors
 
     def reset_prediction_stats(self) -> None:
         self._predicted_rows = 0
@@ -225,7 +282,11 @@ class SilenceAwareFloor(BaselineModel):
             "smoothing_policy": "alpha pseudo-gaps with pooled completed-gap survival",
             "unseen_destination_policy": "pooled survival fraction",
             "unsupported_horizon_policy": "original floor when pooled survivors are zero",
-            "off_grid_horizon_policy": "reject",
+            "horizon_support": self.horizon_support,
+            "off_grid_horizon_policy": (
+                "reject" if self.horizon_support == "grid"
+                else "empirical step survivor from the same estimator (no rounding)"
+            ),
             "zero_horizon_policy": "return original scores exactly",
             "limitation": "observed-completed-gap estimate; no censor correction or time head",
             "prediction_stats": self.prediction_stats(),

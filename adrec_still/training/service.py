@@ -409,17 +409,39 @@ def _write_config(output: Path, record: dict[str, Any]) -> None:
     ckpt.atomic_json(output / "config.json", jsonable(record))
 
 
+def _mark_monte_carlo(result: dict[str, Any], model) -> dict[str, Any]:
+    """Diffusion forecasts estimate item probabilities by MC: say so in the keys."""
+    if not callable(getattr(model, "prepare_forecast", None)):
+        return result
+    def rename(block: dict[str, Any]) -> None:
+        if "poi_nll" in block:
+            block["poi_nll_mc"] = block.pop("poi_nll")
+        if "poi_nll_rows" in block:
+            block["poi_nll_mc_rows"] = block.pop("poi_nll_rows")
+    rename(result)
+    for block in (result.get("by_horizon") or {}).values():
+        rename(block)
+    result["mc"] = {
+        "estimator": "stratified_truncated_mc",
+        "time_samples": getattr(model, "time_samples", None),
+        "diffusion_samples": getattr(model, "diffusion_samples", None),
+        "inference_steps": getattr(model, "inference_steps", None),
+        "eval_noise_seed": getattr(model, "eval_noise_seed", None),
+    }
+    return result
+
+
 def _evaluate(model, data: DataSource, split: str, evaluation: EvaluationOptions,
               reporter: Reporter) -> dict[str, Any]:
     with reporter.phase(f"evaluate-{split}"):
-        result = evaluate_split(
+        result = _mark_monte_carlo(evaluate_split(
             model, data.landmark_path, split=split, horizon=None, breakdown=True,
             options=evaluation,
             progress=lambda done, total: reporter.progress(f"evaluate-{split}", done, total),
-        )
+        ), model)
     headline = {key: result.get(key) for key in ("rows", "eligible_rows", "ndcg@10",
-                                                    "recall@10", "poi_nll", "joint_nll",
-                                                    "time_nll")
+                                                    "recall@10", "poi_nll", "poi_nll_mc",
+                                                    "joint_nll", "time_nll")
                 if result.get(key) is not None}
     reporter.message(f"[{split}] " + " ".join(f"{k} {v:.6g}" if isinstance(v, float) else f"{k} {v}"
                                               for k, v in headline.items()))
@@ -552,10 +574,41 @@ def _run_neural(spec, config, data, evaluation, device, reporter, record, output
         summary["evaluation"]["test"] = _evaluate(
             model, data, "test", evaluation, reporter,
         )
+        if record["family"] == "adrec_still":
+            summary.setdefault("silence", {})["test"] = _silence_evaluation(
+                model, data, "test", evaluation, reporter,
+            )
     elif spec.evaluate_test:
         summary["evaluation"]["test"] = None
         reporter.message("no test split in the data; training is complete without one")
     return summary
+
+
+def _silence_evaluation(model, data: DataSource, split: str,
+                        evaluation: EvaluationOptions, reporter: Reporter) -> dict[str, Any]:
+    """Repeat/time/cell metrics for the extension family's final evaluation."""
+    from adrec_still.evaluation.silence_eval import (
+        evaluate_silence_split,
+        fit_cell_baselines,
+    )
+
+    index = model.require_memory()
+    baselines = None
+    if index.has_coordinates:
+        with reporter.phase("cell-baselines"):
+            baselines = fit_cell_baselines(
+                index, data.landmark_path,
+                cell_radius_km=10.0,
+                cell_time_threshold_hours=model.cell_time_threshold_s / 3600.0,
+            )
+    with reporter.phase(f"silence-{split}"):
+        return evaluate_silence_split(
+            model, data.landmark_path, split, index=index, options=evaluation,
+            cell_radius_km=10.0,
+            cell_time_threshold_hours=model.cell_time_threshold_s / 3600.0,
+            cell_baselines=baselines,
+            progress=lambda done, total: reporter.progress("silence", done, total),
+        )
 
 
 def profile_label(training: dict[str, Any]) -> str:
