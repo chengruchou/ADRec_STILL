@@ -1,1 +1,32 @@
 /.idea/
+/.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Environments
+.venv/
+venv/
+env/
+conda-env/
+
+# Test / lint caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Run outputs (regenerable)
+results/
+runs/
+cache/
+*.log
+
+# Checkpoints and large artifacts produced by new training runs.
+# Upstream bundled weights under src/saved/ stay tracked.
+/checkpoints/
